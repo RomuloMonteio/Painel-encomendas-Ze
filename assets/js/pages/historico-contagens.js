@@ -59,12 +59,14 @@ function renderizar() {
       const { total, aPedir } = resumoItens(cnt.itens);
       const badgeMap = { 'super-bock': 'badge-sb', 'sumol': 'badge-sumol', 'cozinha': 'badge-cozinha' };
       const marcaCls = badgeMap[cnt.marcaSlug] ?? 'badge-sb';
+      const nome = cnt.userNome ?? '—';
+      const nomeDisplay = nome.length > 6 ? nome.substring(0, 6) + '…' : nome;
       return `
         <tr>
           <td>${formatDt(cnt.createdAt)}</td>
           <td><span class="badge-estado ${marcaCls}">${cnt.marcaNome}</span></td>
-          <td>${cnt.userNome ?? '—'}</td>
-          <td class="text-center"><strong>${total}</strong></td>
+          <td class="d-none d-md-table-cell">${nomeDisplay}</td>
+          <td class="text-center d-none d-md-table-cell"><strong>${total}</strong></td>
           <td class="text-center">
             ${aPedir > 0
               ? `<span class="badge-estado badge-enviada"><i class="fas fa-arrow-up me-1"></i>${aPedir} a pedir</span>`

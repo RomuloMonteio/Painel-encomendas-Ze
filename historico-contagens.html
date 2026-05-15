@@ -24,8 +24,8 @@
 
       <!-- Filtros -->
       <div class="filter-bar mb-3">
-        <div class="row g-2 align-items-end">
-          <div class="col-6 col-md-3">
+        <div class="row g-2">
+          <div class="col-12 col-md-3">
             <label class="form-label small fw-semibold mb-1">Marca</label>
             <select id="f-marca" class="form-select form-select-sm">
               <option value="">Todas as marcas</option>
@@ -39,24 +39,24 @@
             <label class="form-label small fw-semibold mb-1">Até</label>
             <input type="date" id="f-fim" class="form-control form-control-sm">
           </div>
-          <div class="col-12 col-md-5 d-flex gap-2 align-items-end">
-            <button id="btn-limpar" class="btn-outline-custom py-1 px-3 justify-content-center">
+          <div class="col-12 col-md-5 d-flex flex-wrap gap-2 align-items-center">
+            <button id="btn-limpar" class="btn-outline-custom py-1 px-3">
               <i class="fas fa-xmark me-1"></i>Limpar
             </button>
             <a href="contagem.html?marca=super-bock"
-               class="btn-primary-custom py-1 px-3 justify-content-center ms-auto"
+               class="btn-primary-custom py-1 px-3"
                style="background:#003087;font-size:.85rem;">
-              <i class="fas fa-plus me-1"></i>Nova Contagem SB
+              <i class="fas fa-plus me-1"></i>Nova SB
             </a>
             <a href="contagem.html?marca=sumol"
-               class="btn-primary-custom py-1 px-3 justify-content-center"
+               class="btn-primary-custom py-1 px-3"
                style="background:#E31E24;font-size:.85rem;">
-              <i class="fas fa-plus me-1"></i>Nova Contagem SM
+              <i class="fas fa-plus me-1"></i>Nova SM
             </a>
             <a href="contagem.html?marca=cozinha"
-               class="btn-primary-custom py-1 px-3 justify-content-center"
+               class="btn-primary-custom py-1 px-3"
                style="background:#d97706;font-size:.85rem;">
-              <i class="fas fa-plus me-1"></i>Nova Contagem CZ
+              <i class="fas fa-plus me-1"></i>Nova CZ
             </a>
           </div>
         </div>
@@ -77,10 +77,10 @@
                 <tr>
                   <th>Data</th>
                   <th>Marca</th>
-                  <th>Utilizador</th>
-                  <th class="text-center">Produtos</th>
-                  <th class="text-center">Estado Stock</th>
-                  <th style="width:90px;"></th>
+                  <th class="d-none d-md-table-cell">Utilizador</th>
+                  <th class="text-center d-none d-md-table-cell">Prod.</th>
+                  <th class="text-center">Estado</th>
+                  <th style="width:70px;"></th>
                 </tr>
               </thead>
               <tbody id="tbody-contagens">
