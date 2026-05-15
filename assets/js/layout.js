@@ -21,9 +21,17 @@ function buildSidebar(paginaAtual, userName, userNivel) {
       ],
     },
     {
+      label: 'Contagem de Stock',
+      links: [
+        { id: 'contagem-super-bock', href: 'contagem.html?marca=super-bock', icon: 'fa-clipboard-list', label: 'Super Bock', badge: 'SB' },
+        { id: 'contagem-sumol',      href: 'contagem.html?marca=sumol',       icon: 'fa-clipboard-list', label: 'Sumol',      badge: 'SM' },
+      ],
+    },
+    {
       label: 'Registos',
       links: [
-        { id: 'historico', href: 'historico.html', icon: 'fa-clock-rotate-left', label: 'Histórico' },
+        { id: 'historico',           href: 'historico.html',           icon: 'fa-clock-rotate-left', label: 'Encomendas'  },
+        { id: 'historico-contagens', href: 'historico-contagens.html', icon: 'fa-clipboard-check',   label: 'Contagens'   },
       ],
     },
   ];

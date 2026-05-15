@@ -124,3 +124,178 @@ export function gerarPDF(encomenda) {
 
   doc.save(`encomenda-${encomenda.numero}.pdf`);
 }
+
+// ─── PDF de Contagem de Stock ─────────────────────────────────────────────
+export function gerarPDFContagem(contagem) {
+  const { jsPDF } = window.jspdf;
+  const doc  = new jsPDF('p', 'mm', 'a4');
+  const [r, g, b] = hexToRgb(contagem.marcaCor || '#003087');
+
+  // ─── Cabeçalho ────────────────────────────────────────────────────────
+  doc.setFillColor(r, g, b);
+  doc.rect(0, 0, 210, 38, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(`Contagem de Stock — ${contagem.marcaNome}`, 14, 17);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`${formatarData(contagem.createdAt)}  ·  Realizado por: ${contagem.userNome ?? '—'}`, 14, 29);
+
+  // ─── Itens por categoria ───────────────────────────────────────────────
+  let startY = 46;
+  const cats = {};
+  (contagem.itens ?? []).forEach(item => {
+    const c = item.categoria ?? 'Outros';
+    if (!cats[c]) cats[c] = { tipo: item.tipo, itens: [] };
+    cats[c].itens.push(item);
+  });
+
+  Object.entries(cats).forEach(([catNome, { tipo, itens }]) => {
+    // Título da secção
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, startY, 182, 7, 'F');
+    doc.setFillColor(r, g, b);
+    doc.rect(14, startY, 3, 7, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(catNome, 20, startY + 5);
+
+    if (tipo === 'barril') {
+      doc.autoTable({
+        startY: startY + 7,
+        head: [['Produto', 'Em uso', 'Vazia(s)', 'Reserva', 'Nota']],
+        body: itens.map(i => [
+          i.nome,
+          i.emUso   ?? 0,
+          i.vazias  ?? 0,
+          i.reserva ?? 0,
+          i.nota    || '',
+        ]),
+        headStyles: {
+          fillColor: [248, 250, 252],
+          textColor: [100, 116, 139],
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { cellWidth: 70  },
+          1: { cellWidth: 20, halign: 'center', fontStyle: 'bold', textColor: [22, 163, 74]  }, // verde
+          2: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: [220, 38, 38]  }, // vermelho
+          3: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: [37, 99, 235]  }, // azul
+          4: { cellWidth: 48, textColor: [100, 116, 139], fontStyle: 'italic' },
+        },
+        styles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
+        theme: 'grid',
+        tableLineColor: [226, 232, 240],
+        tableLineWidth: 0.3,
+      });
+    } else if (tipo === 'stock') {
+      // Stock com mínimo e a pedir
+      doc.autoTable({
+        startY: startY + 7,
+        head: [['Produto', 'Atual', 'Mínimo', 'A Pedir', 'Nota']],
+        body: itens.map(i => [
+          i.nome,
+          i.atual  ?? 0,
+          i.minimo ?? 5,
+          i.aPedir ?? 0,
+          i.nota   || '',
+        ]),
+        headStyles: {
+          fillColor: [248, 250, 252],
+          textColor: [100, 116, 139],
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { cellWidth: 72 },
+          1: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: [124, 58, 237] },
+          2: { cellWidth: 22, halign: 'center', textColor: [100, 116, 139] },
+          3: {
+            cellWidth: 22, halign: 'center', fontStyle: 'bold',
+            // cor dinâmica aplicada por cellDidDraw abaixo
+          },
+          4: { cellWidth: 44, textColor: [100, 116, 139], fontStyle: 'italic' },
+        },
+        styles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
+        theme: 'grid',
+        tableLineColor: [226, 232, 240],
+        tableLineWidth: 0.3,
+        didDrawCell(data) {
+          // Colorir coluna "A Pedir" conforme valor
+          if (data.section === 'body' && data.column.index === 3) {
+            const val = parseInt(data.cell.raw, 10) || 0;
+            data.cell.styles.textColor = val > 0 ? [220, 38, 38] : [22, 163, 74];
+          }
+        },
+      });
+    } else {
+      // Garrafas (quantidade simples)
+      doc.autoTable({
+        startY: startY + 7,
+        head: [['Produto', 'Quantidade', 'Nota']],
+        body: itens.map(i => [
+          i.nome,
+          i.quantidade > 0 ? `${i.quantidade} ${i.unidade ?? ''}` : '—',
+          i.nota || '',
+        ]),
+        headStyles: {
+          fillColor: [248, 250, 252],
+          textColor: [100, 116, 139],
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { cellWidth: 100 },
+          1: { cellWidth: 40, halign: 'center', fontStyle: 'bold', textColor: [124, 58, 237] },
+          2: { cellWidth: 42, textColor: [100, 116, 139], fontStyle: 'italic' },
+        },
+        styles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
+        theme: 'grid',
+        tableLineColor: [226, 232, 240],
+        tableLineWidth: 0.3,
+      });
+    }
+
+    startY = doc.lastAutoTable.finalY + 8;
+  });
+
+  // ─── Observações ──────────────────────────────────────────────────────
+  if (contagem.observacoes) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Observações:', 14, startY);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    doc.text(contagem.observacoes, 14, startY + 6, { maxWidth: 182 });
+  }
+
+  // ─── Legenda das cores ─────────────────────────────────────────────────
+  const legY = 274;
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  doc.text('Legenda barris:', 14, legY);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(22, 163, 74);  doc.text('Em uso', 50, legY);
+  doc.setTextColor(220, 38, 38);  doc.text('Vazia(s)', 70, legY);
+  doc.setTextColor(37, 99, 235);  doc.text('Reserva', 95, legY);
+
+  // ─── Rodapé ───────────────────────────────────────────────────────────
+  const total = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text(
+      `Gerado em ${new Date().toLocaleString('pt-PT')} — Sistema de Gestão de Encomendas`,
+      105, 288, { align: 'center' }
+    );
+  }
+
+  const dataStr = new Date().toLocaleDateString('pt-PT').replace(/\//g, '-');
+  doc.save(`contagem-${contagem.marcaSlug}-${dataStr}.pdf`);
+}

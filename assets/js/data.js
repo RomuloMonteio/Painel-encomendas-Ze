@@ -79,6 +79,54 @@ export const CATEGORIAS = {
 
 // Mapa plano para lookups rápidos por id de produto
 export const PRODUTOS_MAP = {};
+
+// ─── Produtos para Contagem de Stock ──────────────────────────────────────
+export const CONTAGEM_PRODUTOS = {
+  'sumol': [
+    {
+      categoria: 'Refrigerantes e Sumos',
+      tipo: 'stock',
+      minimo: 5,
+      produtos: [
+        { id: 'cnt-s-pepsi',  nome: 'Pepsi',            unidade: 'Pack' },
+        { id: 'cnt-s-pep0',   nome: 'Pepsi 0',          unidade: 'Pack' },
+        { id: 'cnt-s-su-la',  nome: 'Sumol Laranja',    unidade: 'Pack' },
+        { id: 'cnt-s-su-an',  nome: 'Sumol Ananás',     unidade: 'Pack' },
+        { id: 'cnt-s-7up',    nome: '7UP',              unidade: 'Pack' },
+        { id: 'cnt-s-gua',    nome: 'Guaraná',          unidade: 'Pack' },
+        { id: 'cnt-s-ice-li', nome: 'Ice Limão',        unidade: 'Pack' },
+        { id: 'cnt-s-ice-pe', nome: 'Ice Pêssego',      unidade: 'Pack' },
+        { id: 'cnt-s-ice-mn', nome: 'Ice Manga',        unidade: 'Pack' },
+        { id: 'cnt-s-cp-pe',  nome: 'Compal Pêssego',   unidade: 'Pack' },
+        { id: 'cnt-s-cp-ml',  nome: 'Compal Man./Lar.', unidade: 'Pack' },
+      ],
+    },
+  ],
+
+  'super-bock': [
+    {
+      categoria: 'Barris',
+      tipo: 'barril',
+      produtos: [
+        { id: 'cnt-branca-50',   nome: 'Cerveja Branca 50L'                   },
+        { id: 'cnt-stout-30',    nome: 'Cerveja Stout 30L'                    },
+        { id: 'cnt-vinho-press', nome: 'Vinho de Pressão'                     },
+        { id: 'cnt-gas',         nome: 'Gás (CO2)'                            },
+      ],
+    },
+    {
+      categoria: 'Garrafas',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-g-stout-33',    nome: 'Cerveja Stout 33cl',            unidade: 'Pack 6' },
+        { id: 'cnt-g-stout-sa-33', nome: 'Cerveja Stout Sem Álcool 33cl', unidade: 'Pack 6' },
+        { id: 'cnt-g-sb-33',       nome: 'Super Bock 33cl',               unidade: 'Pack 6' },
+        { id: 'cnt-g-sb-sa-33',    nome: 'Super Bock Sem Álcool 33cl',    unidade: 'Caixa'  },
+        { id: 'cnt-g-bohemia-33',  nome: 'Bohemia 33cl',                  unidade: 'Pack 6' },
+      ],
+    },
+  ],
+};
 Object.entries(CATEGORIAS).forEach(([marcaSlug, cats]) => {
   cats.forEach(cat => {
     cat.produtos.forEach(p => {
