@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Gestão de Encomendas</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="login-page">
+
+<div class="login-card">
+  <div class="login-logo">
+    <div class="login-logo-icon"><i class="fas fa-box-open"></i></div>
+    <h2>Gestão de Encomendas</h2>
+    <p>Introduza as suas credenciais para aceder</p>
+  </div>
+
+  <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" id="login-erro" style="display:none!important">
+    <i class="fas fa-circle-exclamation"></i>
+    <span id="login-erro-msg"></span>
+  </div>
+
+  <form id="formLogin" novalidate>
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">Email</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0">
+          <i class="fas fa-envelope text-muted"></i>
+        </span>
+        <input type="email" id="login-email" class="form-control border-start-0 ps-0"
+               placeholder="email@restaurante.pt" required autofocus>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label fw-semibold small">Password</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0">
+          <i class="fas fa-lock text-muted"></i>
+        </span>
+        <input type="password" id="login-password" class="form-control border-start-0 ps-0 border-end-0"
+               placeholder="••••••••" required>
+        <button class="btn btn-outline-secondary border-start-0" type="button" id="togglePw">
+          <i class="fas fa-eye text-muted"></i>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-primary-custom w-100 justify-content-center py-2" id="btn-login">
+      <i class="fas fa-right-to-bracket"></i> Entrar
+    </button>
+  </form>
+</div>
+
+<script type="module">
+import { auth } from './assets/js/firebase.js';
+import {
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+onAuthStateChanged(auth, user => {
+  if (user) location.href = 'dashboard.html';
+});
+
+const erroEl = document.getElementById('login-erro');
+const erroMsgEl = document.getElementById('login-erro-msg');
+
+function mostrarErro(msg) {
+  erroMsgEl.textContent = msg;
+  erroEl.style.display = 'flex';
+}
+
+document.getElementById('togglePw').addEventListener('click', () => {
+  const inp  = document.getElementById('login-password');
+  const icon = document.querySelector('#togglePw i');
+  if (inp.type === 'password') { inp.type = 'text';     icon.classList.replace('fa-eye','fa-eye-slash'); }
+  else                         { inp.type = 'password'; icon.classList.replace('fa-eye-slash','fa-eye'); }
+});
+
+document.getElementById('formLogin').addEventListener('submit', async e => {
+  e.preventDefault();
+  erroEl.style.display = 'none';
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>A entrar…';
+
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    location.href = 'dashboard.html';
+  } catch (err) {
+    const msgs = {
+      'auth/invalid-credential':     'Email ou password incorretos.',
+      'auth/user-not-found':         'Utilizador não encontrado.',
+      'auth/wrong-password':         'Password incorreta.',
+      'auth/too-many-requests':      'Demasiadas tentativas. Tente mais tarde.',
+      'auth/invalid-email':          'Email inválido.',
+    };
+    mostrarErro(msgs[err.code] ?? 'Erro ao iniciar sessão. Tente novamente.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-right-to-bracket me-1"></i>Entrar';
+  }
+});
+</script>
+</body>
+</html>
