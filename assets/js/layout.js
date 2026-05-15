@@ -13,25 +13,26 @@ function buildSidebar(paginaAtual, userName, userNivel) {
         { id: 'dashboard', href: 'dashboard.html', icon: 'fa-chart-pie',         label: 'Dashboard' },
       ],
     },
-    {
-      label: 'Nova Encomenda',
-      links: [
-        { id: 'super-bock', href: 'encomendas.html?marca=super-bock', icon: 'fa-beer-mug-empty', label: 'Super Bock', badge: 'SB' },
-        { id: 'sumol',      href: 'encomendas.html?marca=sumol',       icon: 'fa-bottle-water',  label: 'Sumol',      badge: 'SM' },
-      ],
-    },
+    // { // Nova Encomenda — oculto temporariamente
+    //   label: 'Nova Encomenda',
+    //   links: [
+    //     { id: 'super-bock', href: 'encomendas.html?marca=super-bock', icon: 'fa-beer-mug-empty', label: 'Super Bock', badge: 'SB' },
+    //     { id: 'sumol',      href: 'encomendas.html?marca=sumol',       icon: 'fa-bottle-water',  label: 'Sumol',      badge: 'SM' },
+    //   ],
+    // },
     {
       label: 'Contagem de Stock',
       links: [
         { id: 'contagem-super-bock', href: 'contagem.html?marca=super-bock', icon: 'fa-clipboard-list', label: 'Super Bock', badge: 'SB' },
         { id: 'contagem-sumol',      href: 'contagem.html?marca=sumol',       icon: 'fa-clipboard-list', label: 'Sumol',      badge: 'SM' },
+        { id: 'contagem-cozinha',    href: 'contagem.html?marca=cozinha',     icon: 'fa-utensils',       label: 'Cozinha',    badge: 'CZ' },
       ],
     },
     {
       label: 'Registos',
       links: [
-        { id: 'historico',           href: 'historico.html',           icon: 'fa-clock-rotate-left', label: 'Encomendas'  },
-        { id: 'historico-contagens', href: 'historico-contagens.html', icon: 'fa-clipboard-check',   label: 'Contagens'   },
+        // { id: 'historico', href: 'historico.html', icon: 'fa-clock-rotate-left', label: 'Encomendas' }, // oculto temporariamente
+        { id: 'historico-contagens', href: 'historico-contagens.html', icon: 'fa-clipboard-check', label: 'Contagens' },
       ],
     },
   ];

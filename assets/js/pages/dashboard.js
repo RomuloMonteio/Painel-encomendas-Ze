@@ -1,47 +1,55 @@
 import { initPage }  from '../layout.js';
 import { db }         from '../firebase.js';
-import { gerarPDF }   from '../pdf.js';
 import {
-  collection, query, where, orderBy, limit,
-  getDocs, getCountFromServer, Timestamp,
+  collection, query, orderBy, limit, getDocs,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-async function loadStats() {
-  const encRef = collection(db, 'encomendas');
-  const hoje   = new Date(); hoje.setHours(0, 0, 0, 0);
-  const mes    = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-
-  const [qHoje, qMes, qSB, qSumol, qPend] = await Promise.all([
-    getCountFromServer(query(encRef, where('createdAt', '>=', Timestamp.fromDate(hoje)))),
-    getCountFromServer(query(encRef, where('createdAt', '>=', Timestamp.fromDate(mes)))),
-    getCountFromServer(query(encRef, where('marcaSlug', '==', 'super-bock'), where('createdAt', '>=', Timestamp.fromDate(mes)))),
-    getCountFromServer(query(encRef, where('marcaSlug', '==', 'sumol'),      where('createdAt', '>=', Timestamp.fromDate(mes)))),
-    getCountFromServer(query(encRef, where('estado', '==', 'enviada'))),
-  ]);
-
-  return {
-    hoje:      qHoje.data().count,
-    mes:       qMes.data().count,
-    superBock: qSB.data().count,
-    sumol:     qSumol.data().count,
-    pendentes: qPend.data().count,
-  };
+function formatDt(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-PT') + ' ' + d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 }
 
-async function loadChart7Dias() {
-  const inicio = new Date();
-  inicio.setDate(inicio.getDate() - 6);
-  inicio.setHours(0, 0, 0, 0);
-
+async function onReady() {
+  // Uma só query — tudo calculado no cliente, sem índices compostos
   const snap = await getDocs(query(
-    collection(db, 'encomendas'),
-    where('createdAt', '>=', Timestamp.fromDate(inicio)),
-    orderBy('createdAt')
+    collection(db, 'contagens'),
+    orderBy('createdAt', 'desc'),
+    limit(200)
   ));
+  const contagens = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // ─── Stats ─────────────────────────────────────────────────────────────
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const mes  = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+  let statHoje = 0, statMes = 0, statSB = 0, statSumol = 0;
+  contagens.forEach(c => {
+    const d = c.createdAt?.toDate ? c.createdAt.toDate() : null;
+    if (!d) return;
+    if (d >= hoje) statHoje++;
+    if (d >= mes) {
+      statMes++;
+      if (c.marcaSlug === 'super-bock') statSB++;
+      else statSumol++;
+    }
+  });
+
+  document.getElementById('stat-hoje').textContent  = statHoje;
+  document.getElementById('stat-mes').textContent   = statMes;
+  document.getElementById('stat-sb').textContent    = statSB;
+  document.getElementById('stat-sumol').textContent = statSumol;
+
+  // ─── Gráfico — últimos 7 dias ──────────────────────────────────────────
+  const seteDiasAtras = new Date();
+  seteDiasAtras.setDate(seteDiasAtras.getDate() - 6);
+  seteDiasAtras.setHours(0, 0, 0, 0);
 
   const porDia = {};
-  snap.forEach(d => {
-    const dia = d.data().createdAt.toDate().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+  contagens.forEach(c => {
+    const d = c.createdAt?.toDate ? c.createdAt.toDate() : null;
+    if (!d || d < seteDiasAtras) return;
+    const dia = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
     porDia[dia] = (porDia[dia] ?? 0) + 1;
   });
 
@@ -52,59 +60,16 @@ async function loadChart7Dias() {
     labels.push(l);
     totals.push(porDia[l] ?? 0);
   }
-  return { labels, totals };
-}
 
-async function loadUltimas() {
-  const snap = await getDocs(query(
-    collection(db, 'encomendas'),
-    orderBy('createdAt', 'desc'),
-    limit(5)
-  ));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-}
-
-function badgeEstado(estado) {
-  const map = { enviada: 'badge-enviada', confirmada: 'badge-confirmada', entregue: 'badge-entregue', cancelada: 'badge-cancelada' };
-  return `<span class="badge-estado ${map[estado] ?? ''}">${estado.charAt(0).toUpperCase() + estado.slice(1)}</span>`;
-}
-
-function formatDt(ts) {
-  if (!ts) return '—';
-  const d = ts.toDate ? ts.toDate() : new Date(ts);
-  return d.toLocaleDateString('pt-PT') + ' ' + d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-}
-
-async function onReady(_user, _userData) {
-  const [stats, chart, ultimas] = await Promise.all([loadStats(), loadChart7Dias(), loadUltimas()]);
-
-  // Stats
-  document.getElementById('stat-hoje').textContent      = stats.hoje;
-  document.getElementById('stat-mes').textContent       = stats.mes;
-  document.getElementById('stat-sb').textContent        = stats.superBock;
-  document.getElementById('stat-sumol').textContent     = stats.sumol;
-  document.getElementById('stat-pendentes').textContent = stats.pendentes;
-
-  if (stats.pendentes > 0) {
-    document.getElementById('alert-pendentes').innerHTML = `
-      <i class="fas fa-clock text-warning me-2"></i>
-      <span style="font-size:.85rem;color:#92400e;">
-        <strong>${stats.pendentes}</strong> encomenda(s) pendente(s)
-      </span>
-      <a href="historico.html?estado=enviada" class="ms-auto" style="font-size:.8rem;color:#d97706;">Ver</a>`;
-    document.getElementById('alert-pendentes').style.display = 'flex';
-  }
-
-  // Gráfico
   const ctx = document.getElementById('chartSemanal');
   if (ctx && window.Chart) {
     new window.Chart(ctx, {
       type: 'bar',
       data: {
-        labels: chart.labels,
+        labels,
         datasets: [{
-          label: 'Encomendas',
-          data: chart.totals,
+          label: 'Contagens',
+          data: totals,
           backgroundColor: 'rgba(37,99,235,.15)',
           borderColor: '#2563eb',
           borderWidth: 2,
@@ -124,25 +89,32 @@ async function onReady(_user, _userData) {
     });
   }
 
-  // Tabela últimas encomendas
-  const tbody = document.getElementById('tbody-ultimas');
-  if (!ultimas.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted"><i class="fas fa-inbox me-2 opacity-50"></i>Sem encomendas</td></tr>`;
-  } else {
-    tbody.innerHTML = ultimas.map(enc => `
-      <tr>
-        <td><strong>${enc.numero}</strong></td>
-        <td><span class="badge-estado ${enc.marcaSlug === 'super-bock' ? 'badge-sb' : 'badge-sumol'}">${enc.marcaNome}</span></td>
-        <td>${enc.userNome ?? '—'}</td>
-        <td>${enc.totalQuantidade ?? 0}</td>
-        <td>${badgeEstado(enc.estado)}</td>
-        <td>${formatDt(enc.createdAt)}</td>
-        <td><button class="btn-outline-custom py-1 px-2" style="font-size:.78rem;color:#dc2626;border-color:#fca5a5;" data-pdf='${JSON.stringify(enc)}' title="PDF"><i class="fas fa-file-pdf"></i></button></td>
-      </tr>`).join('');
+  // ─── Tabela últimas 5 ──────────────────────────────────────────────────
+  const ultimas = contagens.slice(0, 5);
+  const tbody   = document.getElementById('tbody-ultimas');
 
-    tbody.querySelectorAll('[data-pdf]').forEach(btn =>
-      btn.addEventListener('click', () => gerarPDF(JSON.parse(btn.dataset.pdf)))
-    );
+  if (!ultimas.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">
+      <i class="fas fa-inbox me-2 opacity-50"></i>Sem contagens</td></tr>`;
+  } else {
+    tbody.innerHTML = ultimas.map(cnt => {
+      const total    = cnt.itens?.length ?? 0;
+      const aPedir   = cnt.itens?.filter(i => i.tipo === 'stock' && (i.aPedir ?? 0) > 0).length ?? 0;
+      const badgeMap = { 'super-bock': 'badge-sb', 'sumol': 'badge-sumol', 'cozinha': 'badge-cozinha' };
+      const marcaCls = badgeMap[cnt.marcaSlug] ?? 'badge-sb';
+      return `
+        <tr>
+          <td>${formatDt(cnt.createdAt)}</td>
+          <td><span class="badge-estado ${marcaCls}">${cnt.marcaNome}</span></td>
+          <td>${cnt.userNome ?? '—'}</td>
+          <td class="text-center"><strong>${total}</strong></td>
+          <td class="text-center">
+            ${aPedir > 0
+              ? `<span class="badge-estado badge-enviada"><i class="fas fa-arrow-up me-1"></i>${aPedir} a pedir</span>`
+              : `<span class="badge-estado badge-entregue"><i class="fas fa-check me-1"></i>Stock ok</span>`}
+          </td>
+        </tr>`;
+    }).join('');
   }
 }
 

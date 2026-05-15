@@ -192,16 +192,13 @@ export function gerarPDFContagem(contagem) {
         tableLineWidth: 0.3,
       });
     } else if (tipo === 'stock') {
-      // Stock com mínimo e a pedir
       doc.autoTable({
         startY: startY + 7,
-        head: [['Produto', 'Atual', 'Mínimo', 'A Pedir', 'Nota']],
+        head: [['Produto', 'Quantidade', 'Nota']],
         body: itens.map(i => [
           i.nome,
-          i.atual  ?? 0,
-          i.minimo ?? 5,
-          i.aPedir ?? 0,
-          i.nota   || '',
+          `${i.quantidade ?? i.atual ?? 0} ${i.unidade ?? ''}`.trim(),
+          i.nota || '',
         ]),
         headStyles: {
           fillColor: [248, 250, 252],
@@ -210,26 +207,14 @@ export function gerarPDFContagem(contagem) {
           fontSize: 8,
         },
         columnStyles: {
-          0: { cellWidth: 72 },
-          1: { cellWidth: 22, halign: 'center', fontStyle: 'bold', textColor: [124, 58, 237] },
-          2: { cellWidth: 22, halign: 'center', textColor: [100, 116, 139] },
-          3: {
-            cellWidth: 22, halign: 'center', fontStyle: 'bold',
-            // cor dinâmica aplicada por cellDidDraw abaixo
-          },
-          4: { cellWidth: 44, textColor: [100, 116, 139], fontStyle: 'italic' },
+          0: { cellWidth: 100 },
+          1: { cellWidth: 42, halign: 'center', fontStyle: 'bold', textColor: [124, 58, 237] },
+          2: { cellWidth: 40, textColor: [100, 116, 139], fontStyle: 'italic' },
         },
         styles: { fontSize: 9, cellPadding: 4, textColor: [30, 41, 59] },
         theme: 'grid',
         tableLineColor: [226, 232, 240],
         tableLineWidth: 0.3,
-        didDrawCell(data) {
-          // Colorir coluna "A Pedir" conforme valor
-          if (data.section === 'body' && data.column.index === 3) {
-            const val = parseInt(data.cell.raw, 10) || 0;
-            data.cell.styles.textColor = val > 0 ? [220, 38, 38] : [22, 163, 74];
-          }
-        },
       });
     } else {
       // Garrafas (quantidade simples)

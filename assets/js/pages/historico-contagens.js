@@ -57,7 +57,8 @@ function renderizar() {
   } else {
     tbody.innerHTML = pagina.map(cnt => {
       const { total, aPedir } = resumoItens(cnt.itens);
-      const marcaCls = cnt.marcaSlug === 'super-bock' ? 'badge-sb' : 'badge-sumol';
+      const badgeMap = { 'super-bock': 'badge-sb', 'sumol': 'badge-sumol', 'cozinha': 'badge-cozinha' };
+      const marcaCls = badgeMap[cnt.marcaSlug] ?? 'badge-sb';
       return `
         <tr>
           <td>${formatDt(cnt.createdAt)}</td>
@@ -70,12 +71,22 @@ function renderizar() {
               : `<span class="badge-estado badge-entregue"><i class="fas fa-check me-1"></i>Stock ok</span>`}
           </td>
           <td>
-            <button class="btn-outline-custom py-1 px-2"
-                    style="font-size:.78rem;color:#dc2626;border-color:#fca5a5;"
-                    data-cnt-idx="${todasContagens.indexOf(cnt)}"
-                    title="Gerar PDF">
-              <i class="fas fa-file-pdf"></i>
-            </button>
+            <div class="d-flex gap-1">
+              <button class="btn-outline-custom py-1 px-2"
+                      style="font-size:.78rem;"
+                      data-cnt-idx="${todasContagens.indexOf(cnt)}"
+                      data-action="ver"
+                      title="Ver contagem">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn-outline-custom py-1 px-2"
+                      style="font-size:.78rem;color:#dc2626;border-color:#fca5a5;"
+                      data-cnt-idx="${todasContagens.indexOf(cnt)}"
+                      data-action="pdf"
+                      title="Gerar PDF">
+                <i class="fas fa-file-pdf"></i>
+              </button>
+            </div>
           </td>
         </tr>`;
     }).join('');
@@ -83,12 +94,137 @@ function renderizar() {
     tbody.querySelectorAll('[data-cnt-idx]').forEach(btn => {
       btn.addEventListener('click', () => {
         const cnt = todasContagens[parseInt(btn.dataset.cntIdx, 10)];
-        if (cnt) gerarPDFContagem(cnt);
+        if (!cnt) return;
+        if (btn.dataset.action === 'pdf') {
+          gerarPDFContagem(cnt);
+        } else {
+          abrirModalContagem(cnt);
+        }
       });
     });
   }
 
   renderPaginacao(filtradas.length, totalPags);
+}
+
+// ─── Modal de detalhe ─────────────────────────────────────────────────────
+function abrirModalContagem(cnt) {
+  const d = cnt.createdAt?.toDate ? cnt.createdAt.toDate() : new Date();
+  const dataStr = d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
+  const horaStr = d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
+  document.getElementById('modal-titulo').textContent =
+    `Contagem de Stock — ${cnt.marcaNome}`;
+  document.getElementById('modal-subtitulo').textContent =
+    `${dataStr} às ${horaStr}  ·  ${cnt.userNome ?? '—'}`;
+
+  // Cor do cabeçalho conforme marca
+  const cor = cnt.marcaCor ?? '#003087';
+  document.getElementById('modal-header').style.borderTop = `4px solid ${cor}`;
+
+  // Agrupar itens por categoria
+  const cats = {};
+  (cnt.itens ?? []).forEach(item => {
+    const c = item.categoria ?? 'Outros';
+    if (!cats[c]) cats[c] = { tipo: item.tipo, itens: [] };
+    cats[c].itens.push(item);
+  });
+
+  let html = '';
+
+  Object.entries(cats).forEach(([catNome, { tipo, itens }]) => {
+    html += `
+      <div style="margin-bottom:1.25rem;">
+        <div style="background:#f1f5f9;border-left:3px solid ${cor};padding:.4rem .75rem;border-radius:0 4px 4px 0;margin-bottom:.5rem;">
+          <strong style="font-size:.82rem;color:#475569;">${catNome}</strong>
+        </div>`;
+
+    if (tipo === 'barril') {
+      html += `
+        <table class="table-modern" style="font-size:.85rem;">
+          <thead><tr>
+            <th>Produto</th>
+            <th class="text-center" style="color:#16a34a;">Em uso</th>
+            <th class="text-center" style="color:#dc2626;">Vazia(s)</th>
+            <th class="text-center" style="color:#2563eb;">Reserva</th>
+            <th>Nota</th>
+          </tr></thead>
+          <tbody>
+            ${itens.map(i => `
+              <tr>
+                <td><strong>${i.nome}</strong></td>
+                <td class="text-center" style="font-weight:700;color:#16a34a;">${i.emUso ?? 0}</td>
+                <td class="text-center" style="font-weight:700;color:#dc2626;">${i.vazias ?? 0}</td>
+                <td class="text-center" style="font-weight:700;color:#2563eb;">${i.reserva ?? 0}</td>
+                <td style="color:#64748b;font-style:italic;">${i.nota || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+
+    } else if (tipo === 'stock') {
+      const totalQty = itens.reduce((s, i) => s + (i.quantidade ?? i.atual ?? 0), 0);
+      html += `
+        <table class="table-modern" style="font-size:.85rem;">
+          <thead><tr>
+            <th>Produto</th>
+            <th class="text-center" style="color:#7c3aed;">Quantidade</th>
+            <th>Nota</th>
+          </tr></thead>
+          <tbody>
+            ${itens.map(i => `
+              <tr>
+                <td><strong>${i.nome}</strong></td>
+                <td class="text-center" style="font-weight:700;color:#7c3aed;">${i.quantidade ?? i.atual ?? 0} ${i.unidade ?? ''}</td>
+                <td style="color:#64748b;font-style:italic;">${i.nota || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <div style="text-align:right;margin-top:.35rem;font-size:.8rem;color:#64748b;">
+          Total: <strong style="color:#7c3aed;">${totalQty}</strong>
+        </div>`;
+
+    } else {
+      // garrafas
+      html += `
+        <table class="table-modern" style="font-size:.85rem;">
+          <thead><tr>
+            <th>Produto</th>
+            <th class="text-center" style="color:#7c3aed;">Quantidade</th>
+            <th>Nota</th>
+          </tr></thead>
+          <tbody>
+            ${itens.map(i => `
+              <tr>
+                <td><strong>${i.nome}</strong></td>
+                <td class="text-center" style="font-weight:700;color:#7c3aed;">${(i.quantidade ?? 0) > 0 ? `${i.quantidade} ${i.unidade ?? ''}` : '—'}</td>
+                <td style="color:#64748b;font-style:italic;">${i.nota || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    html += `</div>`;
+  });
+
+  if (cnt.observacoes) {
+    html += `
+      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin-top:.5rem;">
+        <strong style="font-size:.8rem;color:#64748b;">Observações</strong>
+        <p style="margin:0;margin-top:.25rem;font-size:.875rem;">${cnt.observacoes}</p>
+      </div>`;
+  }
+
+  if (!html) {
+    html = `<p class="text-muted text-center py-3">Sem dados para mostrar.</p>`;
+  }
+
+  document.getElementById('modal-body').innerHTML = html;
+
+  // Botão PDF no modal
+  const btnPdf = document.getElementById('modal-btn-pdf');
+  btnPdf.onclick = () => gerarPDFContagem(cnt);
+
+  new bootstrap.Modal(document.getElementById('modalContagem')).show();
 }
 
 function renderPaginacao(total, totalPags) {

@@ -46,6 +46,11 @@
                style="background:#E31E24;font-size:.85rem;">
               <i class="fas fa-plus me-1"></i>Nova Contagem SM
             </a>
+            <a href="contagem.html?marca=cozinha"
+               class="btn-primary-custom py-1 px-3 justify-content-center"
+               style="background:#d97706;font-size:.85rem;">
+              <i class="fas fa-plus me-1"></i>Nova Contagem CZ
+            </a>
           </div>
         </div>
       </div>
@@ -68,7 +73,7 @@
                   <th>Utilizador</th>
                   <th class="text-center">Produtos</th>
                   <th class="text-center">Estado Stock</th>
-                  <th style="width:60px;"></th>
+                  <th style="width:90px;"></th>
                 </tr>
               </thead>
               <tbody id="tbody-contagens">
@@ -86,6 +91,33 @@
       </div>
 
     </main>
+  </div>
+</div>
+
+<!-- ── Modal detalhe da contagem ─────────────────────────────────────── -->
+<div class="modal fade" id="modalContagem" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" id="modal-header" style="border-bottom:none;">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="modal-titulo">Contagem de Stock</h5>
+          <small class="text-muted" id="modal-subtitulo"></small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-0" id="modal-body">
+        <!-- conteúdo injectado pelo JS -->
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--border);">
+        <button type="button" class="btn-outline-custom py-2 px-3" data-bs-dismiss="modal">
+          <i class="fas fa-xmark me-1"></i>Fechar
+        </button>
+        <button type="button" class="btn-primary-custom py-2 px-3" id="modal-btn-pdf"
+                style="background:#dc2626;">
+          <i class="fas fa-file-pdf me-1"></i>Gerar PDF
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 

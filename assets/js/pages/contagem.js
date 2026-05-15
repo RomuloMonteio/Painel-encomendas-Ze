@@ -11,6 +11,9 @@ const marca     = MARCAS[marcaSlug];
 
 if (!marca) { location.href = 'dashboard.html'; }
 
+// minimoTotal global para categorias 'stock'
+let minimoTotalGlobal = null;
+
 // ─── Construir formulário ─────────────────────────────────────────────────
 function buildForm() {
   const container = document.getElementById('form-contagem');
@@ -18,12 +21,16 @@ function buildForm() {
 
   cats.forEach(cat => {
     const isBarril = cat.tipo === 'barril';
-    const isStock  = cat.tipo === 'stock';   // mínimo + a pedir
+    const isStock  = cat.tipo === 'stock';
+
+    if (isStock && cat.minimoTotal != null) {
+      minimoTotalGlobal = cat.minimoTotal;
+    }
 
     const card = document.createElement('div');
     card.className = 'categoria-card';
 
-    // Cabeçalho com legenda inline
+    // Legenda
     let legendaHTML = '';
     if (isBarril) {
       legendaHTML = `
@@ -35,9 +42,8 @@ function buildForm() {
     } else if (isStock) {
       legendaHTML = `
         <div style="padding:.45rem 1.25rem .6rem;display:flex;gap:1rem;font-size:.72rem;background:#f8fafc;border-bottom:1px solid var(--border);">
-          <span style="color:#7c3aed;font-weight:700;"><i class="fas fa-circle me-1" style="font-size:.45rem"></i>Atual</span>
-          <span style="color:#64748b;font-weight:600;">Mínimo: ${cat.minimo ?? 5}</span>
-          <span style="color:#dc2626;font-weight:700;"><i class="fas fa-circle me-1" style="font-size:.45rem"></i>A pedir = mín − atual</span>
+          <span style="color:#7c3aed;font-weight:700;"><i class="fas fa-circle me-1" style="font-size:.45rem"></i>Quantidade por produto</span>
+          <span style="color:#64748b;">Mínimo total: <strong>${cat.minimoTotal ?? 5}</strong></span>
         </div>`;
     }
 
@@ -67,26 +73,17 @@ function buildForm() {
           </div>`;
 
       } else if (isStock) {
-        const minimo = cat.minimo ?? 5;
+        // Quantidade simples — total global validado no submit
         camposHTML = `
           <div class="contagem-campos">
             <div class="contagem-campo">
-              <label>Atual</label>
-              <input type="number" class="cnt-atual" data-field="atual"
-                     data-produto-id="${p.id}"
-                     data-minimo="${minimo}"
-                     min="0" value="0">
-            </div>
-            <div class="cnt-stock-meta">
-              <span class="cnt-minimo-label">mín. ${minimo}</span>
-              <span class="cnt-apedir-badge baixo" data-apedir="${p.id}">
-                <i class="fas fa-arrow-up"></i> pedir: ${minimo}
-              </span>
+              <label>${p.unidade ?? 'Qtd.'}</label>
+              <input type="number" class="cnt-qty cnt-stock-qty" data-field="quantidade"
+                     data-produto-id="${p.id}" min="0" value="0">
             </div>
           </div>`;
 
       } else {
-        // garrafa (qtd simples)
         camposHTML = `
           <div class="contagem-campos">
             <div class="contagem-campo">
@@ -101,7 +98,7 @@ function buildForm() {
         <div class="contagem-row" data-produto-id="${p.id}">
           <div class="contagem-nome">
             <strong>${p.nome}</strong>
-            ${isStock || (!isBarril) ? `<small>${p.unidade ?? ''}</small>` : ''}
+            ${!isBarril ? `<small>${p.unidade ?? ''}</small>` : ''}
           </div>
           ${camposHTML}
           <input type="text" class="contagem-nota-input"
@@ -128,6 +125,12 @@ function buildForm() {
     container.appendChild(card);
   });
 
+  // Se há mínimo total, mostrar contador no footer
+  if (minimoTotalGlobal != null) {
+    document.getElementById('stock-total-wrapper').style.display = 'flex';
+    atualizarTotalStock();
+  }
+
   setupAccordion();
   setupHighlights();
 }
@@ -136,9 +139,11 @@ function buildForm() {
 function setupAccordion() {
   document.querySelectorAll('.categoria-header').forEach(h => {
     h.addEventListener('click', () => {
-      const body  = h.nextElementSibling;
-      // pular a legenda se existir
-      const target = body.classList.contains('categoria-body') ? body : body.nextElementSibling;
+      // O nextElementSibling pode ser a legenda ou o body
+      let target = h.nextElementSibling;
+      if (target && !target.classList.contains('categoria-body')) {
+        target = target.nextElementSibling;
+      }
       const aberto = !h.classList.contains('collapsed');
       h.classList.toggle('collapsed', aberto);
       if (target) {
@@ -149,77 +154,83 @@ function setupAccordion() {
   });
 }
 
-// ─── Highlights + cálculo a-pedir ────────────────────────────────────────
+// ─── Highlights + total global para stock ─────────────────────────────────
+function atualizarTotalStock() {
+  const inputs = document.querySelectorAll('.cnt-stock-qty');
+  let total = 0;
+  inputs.forEach(inp => { total += parseInt(inp.value, 10) || 0; });
+
+  const minimo  = minimoTotalGlobal ?? 5;
+  const badge   = document.getElementById('stock-total-badge');
+  const btn     = document.getElementById('btn-submit');
+  if (!badge) return;
+
+  const ok = total >= minimo;
+  badge.innerHTML = ok
+    ? `<i class="fas fa-check me-1"></i>Total: ${total} — Mínimo atingido ✓`
+    : `<i class="fas fa-box me-1"></i>Total: ${total} / ${minimo} mínimo`;
+  badge.className = `order-summary-badge ${ok ? '' : 'cnt-badge-baixo'}`;
+
+  if (btn) btn.disabled = !ok;
+}
+
 function setupHighlights() {
+  document.addEventListener('focus', e => {
+    const inp = e.target;
+    if (!inp.matches('input[type="number"]')) return;
+    if (inp.value === '0') inp.value = '';
+  }, true);
+
+  document.addEventListener('blur', e => {
+    const inp = e.target;
+    if (!inp.matches('input[type="number"]')) return;
+    if (inp.value === '' || isNaN(parseInt(inp.value, 10))) {
+      inp.value = '0';
+      inp.classList.remove('has-value');
+      if (inp.classList.contains('cnt-stock-qty')) atualizarTotalStock();
+    }
+  }, true);
+
   document.addEventListener('input', e => {
     const inp = e.target;
     if (!inp.matches('input[type="number"]')) return;
-
     const v = parseInt(inp.value, 10) || 0;
     inp.classList.toggle('has-value', v > 0);
-
-    // Tipo stock: calcular "a pedir"
-    if (inp.classList.contains('cnt-atual')) {
-      const minimo  = parseInt(inp.dataset.minimo, 10) || 5;
-      const aPedir  = Math.max(0, minimo - v);
-      const badge   = document.querySelector(`.cnt-apedir-badge[data-apedir="${inp.dataset.produtoId}"]`);
-      if (badge) {
-        badge.innerHTML = aPedir > 0
-          ? `<i class="fas fa-arrow-up"></i> pedir: ${aPedir}`
-          : `<i class="fas fa-check"></i> ok`;
-        badge.classList.toggle('ok',    aPedir === 0);
-        badge.classList.toggle('baixo', aPedir > 0);
-      }
-      inp.classList.toggle('cnt-ok',    v >= minimo);
-      inp.classList.toggle('cnt-baixo', v < minimo && v > 0);
+    if (inp.classList.contains('cnt-stock-qty')) {
+      atualizarTotalStock();
     }
   });
 }
 
-// ─── Recolher dados do formulário ─────────────────────────────────────────
+// ─── Recolher dados ───────────────────────────────────────────────────────
 function recolherItens() {
   const cats = CONTAGEM_PRODUTOS[marcaSlug] ?? [];
   return cats.flatMap(cat =>
     cat.produtos.map(p => {
       const row  = document.querySelector(`.contagem-row[data-produto-id="${p.id}"]`);
       if (!row) return null;
-      const get  = field => row.querySelector(`[data-field="${field}"]`)?.value ?? '';
-      const getN = field => parseInt(get(field), 10) || 0;
+      const get  = f => row.querySelector(`[data-field="${f}"]`)?.value ?? '';
+      const getN = f => parseInt(get(f), 10) || 0;
 
       if (cat.tipo === 'barril') {
         return {
-          produtoId: p.id,
-          nome:      p.nome,
-          categoria: cat.categoria,
-          tipo:      'barril',
-          emUso:     getN('emUso'),
-          vazias:    getN('vazias'),
-          reserva:   getN('reserva'),
-          nota:      get('nota').trim(),
+          produtoId: p.id, nome: p.nome, categoria: cat.categoria, tipo: 'barril',
+          emUso: getN('emUso'), vazias: getN('vazias'), reserva: getN('reserva'),
+          nota: get('nota').trim(),
         };
       } else if (cat.tipo === 'stock') {
-        const minimo = cat.minimo ?? 5;
-        const atual  = getN('atual');
         return {
-          produtoId:  p.id,
-          nome:       p.nome,
-          categoria:  cat.categoria,
-          tipo:       'stock',
-          unidade:    p.unidade ?? '',
-          minimo,
-          atual,
-          aPedir:     Math.max(0, minimo - atual),
-          nota:       get('nota').trim(),
+          produtoId: p.id, nome: p.nome, categoria: cat.categoria, tipo: 'stock',
+          unidade: p.unidade ?? '',
+          quantidade: getN('quantidade'),
+          nota: get('nota').trim(),
         };
       } else {
         return {
-          produtoId:  p.id,
-          nome:       p.nome,
-          categoria:  cat.categoria,
-          tipo:       'garrafa',
-          unidade:    p.unidade ?? '',
+          produtoId: p.id, nome: p.nome, categoria: cat.categoria, tipo: 'garrafa',
+          unidade: p.unidade ?? '',
           quantidade: getN('quantidade'),
-          nota:       get('nota').trim(),
+          nota: get('nota').trim(),
         };
       }
     }).filter(Boolean)
@@ -250,19 +261,33 @@ async function onReady(user, userData) {
 
   document.getElementById('formContagem').addEventListener('submit', async e => {
     e.preventDefault();
+
+    // Validação do total para stock
+    if (minimoTotalGlobal != null) {
+      const total = [...document.querySelectorAll('.cnt-stock-qty')]
+        .reduce((s, inp) => s + (parseInt(inp.value, 10) || 0), 0);
+      if (total < minimoTotalGlobal) {
+        mostrarErro(`O total tem de ser pelo menos ${minimoTotalGlobal}. Atual: ${total}`);
+        return;
+      }
+    }
+
     const btn = e.submitter;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>A guardar…'; }
 
     try {
+      const itens       = recolherItens();
+      const totalQty    = itens.reduce((s, i) => s + (i.quantidade ?? 0), 0);
       const payload = {
-        userId:      user.uid,
-        userNome:    userData.nome ?? user.email,
+        userId:          user.uid,
+        userNome:        userData.nome ?? user.email,
         marcaSlug,
-        marcaNome:   marca.nome,
-        marcaCor:    marca.cor,
-        itens:       recolherItens(),
-        observacoes: document.getElementById('observacoes').value.trim(),
-        createdAt:   serverTimestamp(),
+        marcaNome:       marca.nome,
+        marcaCor:        marca.cor,
+        itens,
+        totalQuantidade: totalQty,
+        observacoes:     document.getElementById('observacoes').value.trim(),
+        createdAt:       serverTimestamp(),
       };
 
       await addDoc(collection(db, 'contagens'), payload);

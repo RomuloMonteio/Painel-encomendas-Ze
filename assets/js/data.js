@@ -1,6 +1,7 @@
 export const MARCAS = {
   'super-bock': { nome: 'Super Bock', cor: '#003087', icon: 'fa-beer-mug-empty' },
   'sumol':      { nome: 'Sumol',      cor: '#E31E24', icon: 'fa-bottle-water'   },
+  'cozinha':    { nome: 'Cozinha',    cor: '#d97706', icon: 'fa-utensils'        },
 };
 
 export const CATEGORIAS = {
@@ -86,7 +87,7 @@ export const CONTAGEM_PRODUTOS = {
     {
       categoria: 'Refrigerantes e Sumos',
       tipo: 'stock',
-      minimo: 5,
+      minimoTotal: 5,   // mínimo TOTAL de unidades em toda a contagem
       produtos: [
         { id: 'cnt-s-pepsi',  nome: 'Pepsi',            unidade: 'Pack' },
         { id: 'cnt-s-pep0',   nome: 'Pepsi 0',          unidade: 'Pack' },
@@ -99,6 +100,38 @@ export const CONTAGEM_PRODUTOS = {
         { id: 'cnt-s-ice-mn', nome: 'Ice Manga',        unidade: 'Pack' },
         { id: 'cnt-s-cp-pe',  nome: 'Compal Pêssego',   unidade: 'Pack' },
         { id: 'cnt-s-cp-ml',  nome: 'Compal Man./Lar.', unidade: 'Pack' },
+      ],
+    },
+  ],
+
+  'cozinha': [
+    {
+      categoria: 'Sopas',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-coz-cenoura', nome: 'Creme de Cenoura', unidade: 'Doses' },
+        { id: 'cnt-coz-fverde',  nome: 'Feijão Verde',     unidade: 'Doses' },
+        { id: 'cnt-coz-repolho', nome: 'Repolho',          unidade: 'Doses' },
+        { id: 'cnt-coz-espinaf', nome: 'Espinafres',       unidade: 'Doses' },
+        { id: 'cnt-coz-cverde',  nome: 'Caldo Verde',      unidade: 'Doses' },
+        { id: 'cnt-coz-alhofc',  nome: 'Alho Francês',     unidade: 'Doses' },
+      ],
+    },
+    {
+      categoria: 'Comidas',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-coz-pernil',    nome: 'Pernil',                unidade: 'Uni.' },
+        { id: 'cnt-coz-pregos',    nome: 'Pregos',                unidade: 'Uni.' },
+        { id: 'cnt-coz-bifanas',   nome: 'Bifanas',               unidade: 'Uni.' },
+        { id: 'cnt-coz-mlhpernil', nome: 'Molho Pernil',          unidade: 'Uni.' },
+        { id: 'cnt-coz-tabmista',  nome: 'Tábuas Mistas',         unidade: 'Uni.' },
+        { id: 'cnt-coz-paio',      nome: 'Paio',                  unidade: 'Uni.' },
+        { id: 'cnt-coz-fiambre',   nome: 'Fiambre',               unidade: 'Uni.' },
+        { id: 'cnt-coz-presunto',  nome: 'Presunto',              unidade: 'Uni.' },
+        { id: 'cnt-coz-qfatiado',  nome: 'Queijo Fatiado',        unidade: 'Uni.' },
+        { id: 'cnt-coz-qamanteig', nome: 'Queijo Amanteigado',    unidade: 'Uni.' },
+        { id: 'cnt-coz-batfritas', nome: 'Batatas Fritas Caixas', unidade: 'Cx.'  },
       ],
     },
   ],
