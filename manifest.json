@@ -1,0 +1,20 @@
+{
+  "name": "Gestão de Stock",
+  "short_name": "Stock",
+  "description": "Painel de contagem de stock do restaurante",
+  "start_url": "./dashboard.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1b2a",
+  "theme_color": "#0d1b2a",
+  "lang": "pt-PT",
+  "icons": [
+    {
+      "src": "assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -27,13 +27,26 @@
 
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { overflow-x: hidden; }
+
 body {
   font-family: 'Inter', sans-serif;
   font-size: .9rem;
   color: var(--text);
   background: var(--body-bg);
   line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
+
+/* Evita o zoom automático do iOS ao focar inputs */
+input, select, textarea {
+  font-size: max(1rem, 16px);
+  touch-action: manipulation;
+}
+
+/* Remove delay de 300ms em botões e links */
+a, button { touch-action: manipulation; }
 
 a { text-decoration: none; color: inherit; }
 img { max-width: 100%; }
