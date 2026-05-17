@@ -284,3 +284,37 @@ export function gerarPDFContagem(contagem) {
   const dataStr = new Date().toLocaleDateString('pt-PT').replace(/\//g, '-');
   doc.save(`contagem-${contagem.marcaSlug}-${dataStr}.pdf`);
 }
+
+// ─── Partilhar contagem via WhatsApp ──────────────────────────────────────
+export function partilharWhatsApp(contagem) {
+  const d = contagem.createdAt?.toDate ? contagem.createdAt.toDate() : new Date();
+  const dataStr = d.toLocaleDateString('pt-PT') + ' às ' +
+                  d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+
+  const cats = {};
+  (contagem.itens ?? []).forEach(item => {
+    const c = item.categoria ?? 'Outros';
+    if (!cats[c]) cats[c] = { tipo: item.tipo, itens: [] };
+    cats[c].itens.push(item);
+  });
+
+  let texto = `📋 *Contagem ${contagem.marcaNome}*\n${dataStr}\n`;
+
+  Object.entries(cats).forEach(([catNome, { tipo, itens }]) => {
+    texto += `\n*${catNome}*\n`;
+    itens.forEach(i => {
+      if (tipo === 'barril') {
+        texto += `• ${i.nome}: ${i.emUso ?? 0} em uso, ${i.vazias ?? 0} vazia(s), ${i.reserva ?? 0} reserva`;
+      } else {
+        const qty = i.quantidade ?? i.atual ?? 0;
+        texto += `• ${i.nome}: ${qty}${i.unidade ? ' ' + i.unidade : ''}`;
+      }
+      if (i.nota) texto += ` _(${i.nota})_`;
+      texto += '\n';
+    });
+  });
+
+  if (contagem.observacoes) texto += `\n_Obs: ${contagem.observacoes}_`;
+
+  window.open('https://wa.me/?text=' + encodeURIComponent(texto.trim()), '_blank');
+}

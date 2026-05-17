@@ -1,9 +1,10 @@
 import { initPage }     from '../layout.js';
 import { db }            from '../firebase.js';
 import { MARCAS }        from '../data.js';
-import { gerarPDFContagem } from '../pdf.js';
+import { gerarPDFContagem, partilharWhatsApp } from '../pdf.js';
 import {
   collection, query, orderBy, limit, getDocs,
+  doc, deleteDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const POR_PAGINA = 20;
@@ -107,6 +108,24 @@ function renderizar() {
   }
 
   renderPaginacao(filtradas.length, totalPags);
+}
+
+// ─── Apagar contagem ─────────────────────────────────────────────────────
+async function apagarContagem(cnt) {
+  const d = cnt.createdAt?.toDate ? cnt.createdAt.toDate() : new Date();
+  const dataStr = d.toLocaleDateString('pt-PT');
+  if (!confirm(`Apagar a contagem de ${cnt.marcaNome} de ${dataStr}?\nEsta ação não pode ser desfeita.`)) return;
+
+  try {
+    await deleteDoc(doc(db, 'contagens', cnt.id));
+    const idx = todasContagens.indexOf(cnt);
+    if (idx > -1) todasContagens.splice(idx, 1);
+    bootstrap.Modal.getInstance(document.getElementById('modalContagem'))?.hide();
+    renderizar();
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao apagar. Verifique as permissões e tente novamente.');
+  }
 }
 
 // ─── Modal de detalhe ─────────────────────────────────────────────────────
@@ -222,11 +241,13 @@ function abrirModalContagem(cnt) {
 
   document.getElementById('modal-body').innerHTML = html;
 
-  // Botão PDF no modal
-  const btnPdf = document.getElementById('modal-btn-pdf');
-  btnPdf.onclick = () => gerarPDFContagem(cnt);
+  document.getElementById('modal-btn-pdf').onclick     = () => gerarPDFContagem(cnt);
+  document.getElementById('modal-btn-whatsapp').onclick = () => partilharWhatsApp(cnt);
+  document.getElementById('modal-btn-apagar').onclick   = () => apagarContagem(cnt);
+  document.getElementById('modal-btn-editar').href      =
+    `contagem.html?marca=${cnt.marcaSlug}&edit=${cnt.id}`;
 
-  new bootstrap.Modal(document.getElementById('modalContagem')).show();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalContagem')).show();
 }
 
 function renderPaginacao(total, totalPags) {

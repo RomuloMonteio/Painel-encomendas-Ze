@@ -1,17 +1,19 @@
-import { initPage }                 from '../layout.js';
-import { db }                        from '../firebase.js';
-import { MARCAS, CONTAGEM_PRODUTOS } from '../data.js';
-import { gerarPDFContagem }          from '../pdf.js';
+import { initPage }                        from '../layout.js';
+import { db }                               from '../firebase.js';
+import { MARCAS, CONTAGEM_PRODUTOS }        from '../data.js';
+import { gerarPDFContagem, partilharWhatsApp } from '../pdf.js';
 import {
   collection, addDoc, serverTimestamp,
+  doc, getDoc, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-const marcaSlug = new URLSearchParams(location.search).get('marca') ?? 'super-bock';
+const params    = new URLSearchParams(location.search);
+const marcaSlug = params.get('marca') ?? 'super-bock';
+const editId    = params.get('edit')  ?? null;
 const marca     = MARCAS[marcaSlug];
 
 if (!marca) { location.href = 'dashboard.html'; }
 
-// minimoTotal global para categorias 'stock'
 let minimoTotalGlobal = null;
 
 // ─── Construir formulário ─────────────────────────────────────────────────
@@ -30,7 +32,6 @@ function buildForm() {
     const card = document.createElement('div');
     card.className = 'categoria-card';
 
-    // Legenda
     let legendaHTML = '';
     if (isBarril) {
       legendaHTML = `
@@ -71,9 +72,7 @@ function buildForm() {
                      data-produto-id="${p.id}" min="0" value="0">
             </div>
           </div>`;
-
       } else if (isStock) {
-        // Quantidade simples — total global validado no submit
         camposHTML = `
           <div class="contagem-campos">
             <div class="contagem-campo">
@@ -82,7 +81,6 @@ function buildForm() {
                      data-produto-id="${p.id}" min="0" value="0">
             </div>
           </div>`;
-
       } else {
         camposHTML = `
           <div class="contagem-campos">
@@ -125,7 +123,6 @@ function buildForm() {
     container.appendChild(card);
   });
 
-  // Se há mínimo total, mostrar contador no footer
   if (minimoTotalGlobal != null) {
     document.getElementById('stock-total-wrapper').style.display = 'flex';
     atualizarTotalStock();
@@ -135,11 +132,50 @@ function buildForm() {
   setupHighlights();
 }
 
+// ─── Pré-popular formulário no modo edição ────────────────────────────────
+async function popularFormEdit(docId) {
+  try {
+    const snap = await getDoc(doc(db, 'contagens', docId));
+    if (!snap.exists()) { mostrarErro('Contagem não encontrada.'); return; }
+    const cnt = snap.data();
+
+    (cnt.itens ?? []).forEach(item => {
+      const row = document.querySelector(`.contagem-row[data-produto-id="${item.produtoId}"]`);
+      if (!row) return;
+
+      const setVal = (field, val) => {
+        const el = row.querySelector(`[data-field="${field}"]`);
+        if (!el) return;
+        el.value = val ?? 0;
+        el.classList.toggle('has-value', (parseInt(val) || 0) > 0);
+      };
+
+      if (item.tipo === 'barril') {
+        setVal('emUso',   item.emUso);
+        setVal('vazias',  item.vazias);
+        setVal('reserva', item.reserva);
+      } else {
+        setVal('quantidade', item.quantidade ?? item.atual);
+      }
+
+      const nota = row.querySelector('[data-field="nota"]');
+      if (nota) nota.value = item.nota ?? '';
+    });
+
+    const obs = document.getElementById('observacoes');
+    if (obs) obs.value = cnt.observacoes ?? '';
+
+    if (minimoTotalGlobal != null) atualizarTotalStock();
+  } catch (err) {
+    console.error(err);
+    mostrarErro('Erro ao carregar dados para edição.');
+  }
+}
+
 // ─── Accordion ────────────────────────────────────────────────────────────
 function setupAccordion() {
   document.querySelectorAll('.categoria-header').forEach(h => {
     h.addEventListener('click', () => {
-      // O nextElementSibling pode ser a legenda ou o body
       let target = h.nextElementSibling;
       if (target && !target.classList.contains('categoria-body')) {
         target = target.nextElementSibling;
@@ -160,9 +196,9 @@ function atualizarTotalStock() {
   let total = 0;
   inputs.forEach(inp => { total += parseInt(inp.value, 10) || 0; });
 
-  const minimo  = minimoTotalGlobal ?? 5;
-  const badge   = document.getElementById('stock-total-badge');
-  const btn     = document.getElementById('btn-submit');
+  const minimo = minimoTotalGlobal ?? 5;
+  const badge  = document.getElementById('stock-total-badge');
+  const btn    = document.getElementById('btn-submit');
   if (!badge) return;
 
   const ok = total >= minimo;
@@ -196,9 +232,7 @@ function setupHighlights() {
     if (!inp.matches('input[type="number"]')) return;
     const v = parseInt(inp.value, 10) || 0;
     inp.classList.toggle('has-value', v > 0);
-    if (inp.classList.contains('cnt-stock-qty')) {
-      atualizarTotalStock();
-    }
+    if (inp.classList.contains('cnt-stock-qty')) atualizarTotalStock();
   });
 }
 
@@ -221,27 +255,24 @@ function recolherItens() {
       } else if (cat.tipo === 'stock') {
         return {
           produtoId: p.id, nome: p.nome, categoria: cat.categoria, tipo: 'stock',
-          unidade: p.unidade ?? '',
-          quantidade: getN('quantidade'),
-          nota: get('nota').trim(),
+          unidade: p.unidade ?? '', quantidade: getN('quantidade'), nota: get('nota').trim(),
         };
       } else {
         return {
           produtoId: p.id, nome: p.nome, categoria: cat.categoria, tipo: 'garrafa',
-          unidade: p.unidade ?? '',
-          quantidade: getN('quantidade'),
-          nota: get('nota').trim(),
+          unidade: p.unidade ?? '', quantidade: getN('quantidade'), nota: get('nota').trim(),
         };
       }
     }).filter(Boolean)
   );
 }
 
-// ─── Sucesso ──────────────────────────────────────────────────────────────
+// ─── Sucesso / Erro ───────────────────────────────────────────────────────
 function mostrarSucesso(contagem) {
   document.getElementById('estado-form').style.display    = 'none';
   document.getElementById('estado-sucesso').style.display = 'block';
   document.getElementById('btn-pdf-sucesso').addEventListener('click', () => gerarPDFContagem(contagem));
+  document.getElementById('btn-whatsapp-sucesso').addEventListener('click', () => partilharWhatsApp(contagem));
 }
 
 function mostrarErro(msg) {
@@ -259,10 +290,25 @@ async function onReady(user, userData) {
 
   buildForm();
 
+  // Modo edição: pré-popular form e ajustar UI
+  if (editId) {
+    await popularFormEdit(editId);
+    const btnSubmit = document.getElementById('btn-submit');
+    if (btnSubmit) {
+      btnSubmit.innerHTML = '<i class="fas fa-pen me-1"></i>Atualizar Contagem';
+      btnSubmit.style.background = '#7c3aed';
+    }
+    // Indicar visualmente que é edição
+    document.querySelector('.marca-header')?.insertAdjacentHTML('beforeend',
+      `<span class="badge-estado" style="background:#f3e8ff;color:#7c3aed;margin-left:auto;">
+        <i class="fas fa-pen me-1"></i>A editar
+      </span>`
+    );
+  }
+
   document.getElementById('formContagem').addEventListener('submit', async e => {
     e.preventDefault();
 
-    // Validação do total para stock
     if (minimoTotalGlobal != null) {
       const total = [...document.querySelectorAll('.cnt-stock-qty')]
         .reduce((s, inp) => s + (parseInt(inp.value, 10) || 0), 0);
@@ -276,26 +322,43 @@ async function onReady(user, userData) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>A guardar…'; }
 
     try {
-      const itens       = recolherItens();
-      const totalQty    = itens.reduce((s, i) => s + (i.quantidade ?? 0), 0);
-      const payload = {
-        userId:          user.uid,
-        userNome:        userData.nome ?? user.email,
-        marcaSlug,
-        marcaNome:       marca.nome,
-        marcaCor:        marca.cor,
-        itens,
-        totalQuantidade: totalQty,
-        observacoes:     document.getElementById('observacoes').value.trim(),
-        createdAt:       serverTimestamp(),
-      };
+      const itens    = recolherItens();
+      const totalQty = itens.reduce((s, i) => s + (i.quantidade ?? 0), 0);
+      const obs      = document.getElementById('observacoes').value.trim();
+      let contagemParaModal;
 
-      await addDoc(collection(db, 'contagens'), payload);
-      mostrarSucesso({ ...payload, createdAt: { toDate: () => new Date() } });
+      if (editId) {
+        await updateDoc(doc(db, 'contagens', editId), {
+          itens, totalQuantidade: totalQty, observacoes: obs,
+          updatedAt: serverTimestamp(),
+        });
+        contagemParaModal = {
+          marcaNome: marca.nome, marcaCor: marca.cor, marcaSlug,
+          itens, totalQuantidade: totalQty, observacoes: obs,
+          userNome: userData.nome ?? user.email,
+          createdAt: { toDate: () => new Date() },
+        };
+      } else {
+        const payload = {
+          userId: user.uid, userNome: userData.nome ?? user.email,
+          marcaSlug, marcaNome: marca.nome, marcaCor: marca.cor,
+          itens, totalQuantidade: totalQty, observacoes: obs,
+          createdAt: serverTimestamp(),
+        };
+        await addDoc(collection(db, 'contagens'), payload);
+        contagemParaModal = { ...payload, createdAt: { toDate: () => new Date() } };
+      }
+
+      mostrarSucesso(contagemParaModal);
     } catch (err) {
       console.error(err);
       mostrarErro('Erro ao guardar a contagem. Tente novamente.');
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save me-1"></i>Guardar Contagem'; }
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = editId
+          ? '<i class="fas fa-pen me-1"></i>Atualizar Contagem'
+          : '<i class="fas fa-save me-1"></i>Guardar Contagem';
+      }
     }
   });
 }
