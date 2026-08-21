@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npx --yes playwright --version)",
+      "Bash(mkdir -p \"/tmp/claude-1000/-home-romy-Documentos-GitHub-Painel-encomendas-Ze/a94cea30-efff-4bb6-8331-77d332fa073c/scratchpad/pw\")",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Read(//tmp/**)",
+      "Bash(npx playwright *)",
+      "Bash(node test.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8123/index.html)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8123/dashboard.html)",
+      "Bash(rsync -a --exclude=.git /home/romy/Documentos/GitHub/Painel-encomendas-Ze/ /tmp/claude-1000/-home-romy-Documentos-GitHub-Painel-encomendas-Ze/a94cea30-efff-4bb6-8331-77d332fa073c/scratchpad/mocktest/)",
+      "Bash(node test-interacoes.js)",
+      "Bash(lsof -ti:8123 -sTCP:LISTEN)",
+      "Bash(xargs -r kill)",
+      "Bash(lsof -ti:8124 -sTCP:LISTEN)",
+      "Bash(lsof -ti:8125 -sTCP:LISTEN)",
+      "Bash(firebase deploy *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
