@@ -214,6 +214,7 @@ img { max-width: 100%; }
 /* ─── MAIN WRAPPER ─── */
 .main-wrapper {
   flex: 1;
+  min-width: 0; /* impede que conteúdo largo (tabelas, grids) force a página a alargar além do ecrã */
   margin-left: var(--sidebar-w);
   display: flex;
   flex-direction: column;
