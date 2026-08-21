@@ -19,7 +19,16 @@
       "Bash(lsof -ti:8125 -sTCP:LISTEN)",
       "Bash(firebase deploy *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(gh api *)",
+      "Bash(git ls-remote *)",
+      "Bash(curl -s https://api.github.com/repos/RomuloMonteio/Painel-encomendas-Ze/pages)",
+      "Bash(curl -sI https://romulomonteio.github.io/Painel-encomendas-Ze/)",
+      "Bash(curl -s https://romulomonteio.github.io/Painel-encomendas-Ze/dashboard.html)",
+      "Bash(curl -sI https://romulomonteio.github.io/Painel-encomendas-Ze/faltas.html)",
+      "Bash(curl -s https://romulomonteio.github.io/Painel-encomendas-Ze/assets/js/data.js)",
+      "Bash(node test-mobile.js)",
+      "Bash(git push *)"
     ]
   }
 }
