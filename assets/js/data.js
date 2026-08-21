@@ -1,8 +1,23 @@
 export const MARCAS = {
-  'super-bock': { nome: 'Super Bock', cor: '#003087', icon: 'fa-beer-mug-empty' },
-  'sumol':      { nome: 'Sumol',      cor: '#E31E24', icon: 'fa-bottle-water'   },
-  'cozinha':    { nome: 'Cozinha',    cor: '#d97706', icon: 'fa-utensils'        },
+  'super-bock':      { nome: 'Super Bock',        cor: '#003087', icon: 'fa-beer-mug-empty' },
+  'sumol':           { nome: 'Sumol',              cor: '#E31E24', icon: 'fa-bottle-water'   },
+  'cozinha-domingo': { nome: 'Cozinha (Domingo)',  cor: '#d97706', icon: 'fa-utensils'        },
+  'cozinha-segunda': { nome: 'Cozinha (Segunda)',  cor: '#b45309', icon: 'fa-utensils'        },
+  // Legado — categoria única "Cozinha" usada antes da divisão por dia. Mantida só
+  // para consulta/edição de contagens antigas; não aparece no sidebar nem na agenda.
+  'cozinha-legado':  { nome: 'Cozinha',            cor: '#d97706', icon: 'fa-utensils'        },
 };
+
+// Agenda semanal — mapeia dia da semana (Date#getDay(): 0=domingo … 6=sábado) às
+// tarefas (contagens ou lista de faltas) que devem ser feitas nesse dia. Usada
+// pelo calendário mensal do dashboard.
+export const AGENDA_SEMANAL = [
+  { id: 'cozinha-domingo', tipo: 'contagem', marcaSlug: 'cozinha-domingo', diaSemana: 0 },
+  { id: 'cozinha-segunda', tipo: 'contagem', marcaSlug: 'cozinha-segunda', diaSemana: 1 },
+  { id: 'sumol',           tipo: 'contagem', marcaSlug: 'sumol',           diaSemana: 3, diaInicioJanela: 2 }, // janela terça(2)→quarta(3)
+  { id: 'super-bock',      tipo: 'contagem', marcaSlug: 'super-bock',      diaSemana: 3 },
+  { id: 'faltas',          tipo: 'faltas',                                 diaSemana: 2 }, // prazo: terça inteira
+];
 
 export const CATEGORIAS = {
   'super-bock': [
@@ -104,7 +119,9 @@ export const CONTAGEM_PRODUTOS = {
     },
   ],
 
-  'cozinha': [
+  // Legado — categoria única "Cozinha" antes da divisão por dia (Domingo/Segunda).
+  // Mantida apenas para consulta/edição de contagens antigas.
+  'cozinha-legado': [
     {
       categoria: 'Sopas',
       tipo: 'garrafa',
@@ -136,6 +153,62 @@ export const CONTAGEM_PRODUTOS = {
     },
   ],
 
+  // Domingo — Sopas + extras (Molho Pernil também é contado à segunda-feira,
+  // por isso reutiliza o mesmo id de produto; vivem em documentos distintos).
+  'cozinha-domingo': [
+    {
+      categoria: 'Sopas',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-coz-cenoura', nome: 'Creme de Cenoura', unidade: '' },
+        { id: 'cnt-coz-fverde',  nome: 'Feijão Verde',     unidade: '' },
+        { id: 'cnt-coz-repolho', nome: 'Repolho',          unidade: '' },
+        { id: 'cnt-coz-espinaf', nome: 'Espinafres',       unidade: '' },
+        { id: 'cnt-coz-cverde',  nome: 'Caldo Verde',      unidade: '' },
+        { id: 'cnt-coz-alhofc',  nome: 'Alho Francês',     unidade: '' },
+      ],
+    },
+    {
+      categoria: 'Extras',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-coz-mlhpernil', nome: 'Molho Pernil',    unidade: 'Uni.' },
+        { id: 'cnt-coz-qserra',    nome: 'Queijo da Serra', unidade: 'Uni.' },
+      ],
+    },
+  ],
+
+  // Segunda-feira — Comidas + Sobremesas
+  'cozinha-segunda': [
+    {
+      categoria: 'Comidas',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-coz-pernil',    nome: 'Pernil',                unidade: 'Uni.' },
+        { id: 'cnt-coz-pregos',    nome: 'Pregos',                unidade: 'Uni.' },
+        { id: 'cnt-coz-bifanas',   nome: 'Bifanas',               unidade: 'Uni.' },
+        { id: 'cnt-coz-mlhpernil', nome: 'Molho Pernil',          unidade: 'Uni.' },
+        { id: 'cnt-coz-tabmista',  nome: 'Tábuas Mistas',         unidade: 'Uni.' },
+        { id: 'cnt-coz-paio',      nome: 'Paio',                  unidade: 'Uni.' },
+        { id: 'cnt-coz-fiambre',   nome: 'Fiambre',               unidade: 'Uni.' },
+        { id: 'cnt-coz-presunto',  nome: 'Presunto',              unidade: 'Uni.' },
+        { id: 'cnt-coz-chourico',  nome: 'Chouriço',              unidade: 'Uni.' },
+        { id: 'cnt-coz-qfatiado',  nome: 'Queijo Fatiado',        unidade: 'Uni.' },
+        { id: 'cnt-coz-qamanteig', nome: 'Queijo Amanteigado',    unidade: 'Uni.' },
+        { id: 'cnt-coz-batfritas', nome: 'Batatas Fritas Caixas', unidade: 'Cx.'  },
+      ],
+    },
+    {
+      categoria: 'Sobremesas',
+      tipo: 'garrafa',
+      produtos: [
+        { id: 'cnt-coz-panacota',   nome: 'Panacota',    unidade: 'Uni.' },
+        { id: 'cnt-coz-mousseoreo', nome: 'Mousse Oreo', unidade: 'Uni.' },
+        { id: 'cnt-coz-geleia',     nome: 'Geleia',       unidade: 'Uni.' },
+      ],
+    },
+  ],
+
   'super-bock': [
     {
       categoria: 'Barris',
@@ -145,17 +218,6 @@ export const CONTAGEM_PRODUTOS = {
         { id: 'cnt-stout-30',    nome: 'Cerveja Stout 30L'                    },
         { id: 'cnt-vinho-press', nome: 'Vinho de Pressão'                     },
         { id: 'cnt-gas',         nome: 'Gás (CO2)'                            },
-      ],
-    },
-    {
-      categoria: 'Garrafas',
-      tipo: 'garrafa',
-      produtos: [
-        { id: 'cnt-g-stout-33',    nome: 'Cerveja Stout 33cl',            unidade: 'Pack 6' },
-        { id: 'cnt-g-stout-sa-33', nome: 'Cerveja Stout Sem Álcool 33cl', unidade: 'Pack 6' },
-        { id: 'cnt-g-sb-33',       nome: 'Super Bock 33cl',               unidade: 'Pack 6' },
-        { id: 'cnt-g-sb-sa-33',    nome: 'Super Bock Sem Álcool 33cl',    unidade: 'Caixa'  },
-        { id: 'cnt-g-bohemia-33',  nome: 'Bohemia 33cl',                  unidade: 'Pack 6' },
       ],
     },
   ],

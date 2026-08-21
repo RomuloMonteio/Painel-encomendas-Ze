@@ -23,9 +23,16 @@ function buildSidebar(paginaAtual, userName, userNivel) {
     {
       label: 'Contagem de Stock',
       links: [
-        { id: 'contagem-super-bock', href: 'contagem.html?marca=super-bock', icon: 'fa-clipboard-list', label: 'Super Bock', badge: 'SB' },
-        { id: 'contagem-sumol',      href: 'contagem.html?marca=sumol',       icon: 'fa-clipboard-list', label: 'Sumol',      badge: 'SM' },
-        { id: 'contagem-cozinha',    href: 'contagem.html?marca=cozinha',     icon: 'fa-utensils',       label: 'Cozinha',    badge: 'CZ' },
+        { id: 'contagem-super-bock',      href: 'contagem.html?marca=super-bock',      icon: 'fa-clipboard-list', label: 'Super Bock',        badge: 'SB'   },
+        { id: 'contagem-sumol',           href: 'contagem.html?marca=sumol',           icon: 'fa-clipboard-list', label: 'Sumol',             badge: 'SM'   },
+        { id: 'contagem-cozinha-domingo', href: 'contagem.html?marca=cozinha-domingo', icon: 'fa-utensils',       label: 'Cozinha (Domingo)', badge: 'CZ-D' },
+        { id: 'contagem-cozinha-segunda', href: 'contagem.html?marca=cozinha-segunda', icon: 'fa-utensils',       label: 'Cozinha (Segunda)', badge: 'CZ-S' },
+      ],
+    },
+    {
+      label: 'Compras',
+      links: [
+        { id: 'faltas', href: 'faltas.html', icon: 'fa-cart-shopping', label: 'Lista de Faltas' },
       ],
     },
     {

@@ -1,8 +1,9 @@
-const CACHE = 'stock-v1';
+const CACHE = 'stock-v2';
 const STATIC = [
   './dashboard.html',
   './contagem.html',
   './historico-contagens.html',
+  './faltas.html',
   './index.html',
   './assets/css/style.css',
   './manifest.json',

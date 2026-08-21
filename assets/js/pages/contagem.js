@@ -331,6 +331,8 @@ async function onReady(user, userData) {
         await updateDoc(doc(db, 'contagens', editId), {
           itens, totalQuantidade: totalQty, observacoes: obs,
           updatedAt: serverTimestamp(),
+          updatedBy: user.uid,
+          updatedByNome: userData.nome ?? user.email,
         });
         contagemParaModal = {
           marcaNome: marca.nome, marcaCor: marca.cor, marcaSlug,
