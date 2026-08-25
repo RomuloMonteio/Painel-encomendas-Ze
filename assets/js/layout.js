@@ -44,6 +44,15 @@ function buildSidebar(paginaAtual, userName, userNivel) {
     },
   ];
 
+  if (userNivel === 'admin') {
+    sections.push({
+      label: 'Administração',
+      links: [
+        { id: 'utilizadores', href: 'utilizadores.html', icon: 'fa-users-gear', label: 'Utilizadores' },
+      ],
+    });
+  }
+
   const navHTML = sections.map(sec => `
     <div class="sidebar-section-label">${sec.label}</div>
     ${sec.links.map(l => `

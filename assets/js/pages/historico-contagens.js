@@ -11,6 +11,8 @@ import {
 const POR_PAGINA = 20;
 let todasContagens = [];
 let paginaAtual    = 1;
+let filtroUserIdAtivo   = null;
+let filtroUserNomeAtivo = null;
 
 function formatDt(ts) {
   if (!ts) return '—';
@@ -32,6 +34,7 @@ function filtrar(contagens) {
   const dataFim    = document.getElementById('f-fim').value;
 
   return contagens.filter(c => {
+    if (filtroUserIdAtivo && c.userId !== filtroUserIdAtivo) return false;
     if (marcaId && c.marcaSlug !== marcaId) return false;
     const d = c.createdAt?.toDate ? c.createdAt.toDate() : null;
     if (d) {
@@ -40,6 +43,29 @@ function filtrar(contagens) {
       if (dataFim    && iso > dataFim)    return false;
     }
     return true;
+  });
+}
+
+// ─── Badge de filtro por utilizador (vindo do painel de administração) ────
+function renderBadgeFiltroUtilizador() {
+  const el = document.getElementById('badge-filtro-utilizador');
+  if (!el) return;
+  if (!filtroUserIdAtivo) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <span class="badge-estado badge-confirmada" style="font-size:.8rem;">
+      <i class="fas fa-user me-1"></i>Filtrado por: ${filtroUserNomeAtivo ?? '—'}
+      <button type="button" id="btn-limpar-filtro-utilizador" class="btn-close ms-2" style="font-size:.6rem;" aria-label="Limpar filtro"></button>
+    </span>`;
+  document.getElementById('btn-limpar-filtro-utilizador').addEventListener('click', () => {
+    filtroUserIdAtivo = null;
+    filtroUserNomeAtivo = null;
+    const url = new URL(location.href);
+    url.searchParams.delete('userId');
+    url.searchParams.delete('userNome');
+    history.replaceState(null, '', url);
+    paginaAtual = 1;
+    renderBadgeFiltroUtilizador();
+    renderizar();
   });
 }
 
@@ -170,6 +196,11 @@ async function onReady() {
   // Filtro da URL
   const params = new URLSearchParams(location.search);
   if (params.get('marca')) fMarca.value = params.get('marca');
+  if (params.get('userId')) {
+    filtroUserIdAtivo   = params.get('userId');
+    filtroUserNomeAtivo = params.get('userNome');
+    renderBadgeFiltroUtilizador();
+  }
 
   // Carregar contagens (até 200)
   const snap = await getDocs(query(
