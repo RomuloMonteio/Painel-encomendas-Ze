@@ -28,7 +28,14 @@
       "Bash(curl -sI https://romulomonteio.github.io/Painel-encomendas-Ze/faltas.html)",
       "Bash(curl -s https://romulomonteio.github.io/Painel-encomendas-Ze/assets/js/data.js)",
       "Bash(node test-mobile.js)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(timeout 40 firebase emulators:start --only functions)",
+      "Bash(nohup firebase emulators:start --only functions)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(curl -s -X POST http://127.0.0.1:5001/gestao-de-encomendas-ze/us-central1/adminListarUtilizadores -H 'Content-Type: application/json' -d '{\"data\": {}}')",
+      "Bash(kill %1)",
+      "Bash(pkill -f \"firebase emulators:start\")",
+      "Bash(lsof -ti:5001,4000,4400,4500,8310)"
     ]
   }
 }
