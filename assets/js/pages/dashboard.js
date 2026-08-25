@@ -4,7 +4,7 @@ import { AGENDA_SEMANAL, MARCAS } from '../data.js';
 import { abrirModalContagem }     from '../contagem-modal.js';
 import {
   collection, query, orderBy, limit, getDocs, where, Timestamp,
-  doc, deleteDoc,
+  doc, deleteDoc, updateDoc,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 function formatDt(ts) {
@@ -13,7 +13,21 @@ function formatDt(ts) {
   return d.toLocaleDateString('pt-PT') + ' ' + d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 }
 
-async function onReady() {
+// Data local (não UTC) no formato YYYY-MM-DD, usada para associar manualmente
+// uma contagem a um dia do calendário independentemente da hora de criação.
+function dataISOLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+let currentUser = null, currentUserData = null;
+let todasContagensRecentes = [];
+
+async function onReady(user, userData) {
+  currentUser = user; currentUserData = userData;
+
   // Uma só query — tudo calculado no cliente, sem índices compostos
   const snap = await getDocs(query(
     collection(db, 'contagens'),
@@ -21,6 +35,7 @@ async function onReady() {
     limit(200)
   ));
   const contagens = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  todasContagensRecentes = contagens;
 
   // ─── Stats ─────────────────────────────────────────────────────────────
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -157,7 +172,21 @@ async function carregarContagensIntervalo(inicio, fim) {
     where('createdAt', '<',  Timestamp.fromDate(fim)),
     orderBy('createdAt'),
   ));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const porData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Cobre o caso de uma contagem associada manualmente a um dia deste grid,
+  // mas cujo createdAt real cai fora do intervalo (ex: feita num mês anterior).
+  const snapAssoc = await getDocs(query(
+    collection(db, 'contagens'),
+    where('calendarioData', '>=', dataISOLocal(inicio)),
+    where('calendarioData', '<=', dataISOLocal(fim)),
+    orderBy('calendarioData'),
+  ));
+  const porAssociacao = snapAssoc.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const mapa = new Map();
+  [...porData, ...porAssociacao].forEach(c => mapa.set(c.id, c));
+  return [...mapa.values()];
 }
 
 async function carregarListasFalta() {
@@ -182,8 +211,10 @@ function estadoTarefaNoDia(tarefa, dataCelula) {
   let feita = false, registro = null;
 
   if (tarefa.tipo === 'contagem') {
+    const dataISOCel = dataISOLocal(dataCelula);
     const candidatas = contagensCache.filter(c => {
       if (c.marcaSlug !== tarefa.marcaSlug) return false;
+      if (c.calendarioData === dataISOCel) return true;
       const d = c.createdAt?.toDate ? c.createdAt.toDate() : null;
       return d && d >= inicio && d <= fim;
     });
@@ -263,6 +294,21 @@ function renderCalendario(inicio, fim) {
   });
 }
 
+async function associarContagemAoDia(contagemId, dataCelula) {
+  try {
+    await updateDoc(doc(db, 'contagens', contagemId), {
+      calendarioData: dataISOLocal(dataCelula),
+      calendarioAtribuidoPor: currentUser?.uid ?? null,
+      calendarioAtribuidoPorNome: currentUserData?.nome ?? currentUser?.email ?? null,
+    });
+    await carregarECalendario();
+    abrirModalDia(dataCelula);
+  } catch (err) {
+    console.error(err);
+    alert('Erro ao associar a contagem. Tente novamente.');
+  }
+}
+
 async function apagarContagemDashboard(cnt) {
   const d = cnt.createdAt?.toDate ? cnt.createdAt.toDate() : new Date();
   if (!confirm(`Apagar a contagem de ${cnt.marcaNome} de ${d.toLocaleDateString('pt-PT')}?\nEsta ação não pode ser desfeita.`)) return;
@@ -303,11 +349,28 @@ function abrirModalDia(data) {
             </a>
           </div>`;
       } else {
+        const candidatas = todasContagensRecentes
+          .filter(c => c.marcaSlug === t.marcaSlug)
+          .slice(0, 15);
+        const selectAssociar = candidatas.length ? `
+          <div class="mt-2" style="font-size:.78rem;">
+            <label class="text-muted d-block mb-1">Ou marcar como já feita, associando um registo existente:</label>
+            <div class="d-flex gap-2">
+              <select class="form-select form-select-sm select-associar-contagem" style="font-size:.78rem;">
+                <option value="">Selecionar contagem…</option>
+                ${candidatas.map(c => `<option value="${c.id}">${formatDt(c.createdAt)} — ${c.userNome ?? '—'}</option>`).join('')}
+              </select>
+              <button type="button" class="btn-outline-custom py-1 px-2 btn-associar-contagem" style="font-size:.78rem;" title="Associar">
+                <i class="fas fa-check"></i>
+              </button>
+            </div>
+          </div>` : '';
         corpo = `
           <div class="text-muted" style="font-size:.85rem;">Ainda não foi feita.</div>
           <a href="contagem.html?marca=${t.marcaSlug}" class="btn-outline-custom py-1 px-2 mt-2 d-inline-block" style="font-size:.78rem;">
             <i class="fas fa-plus me-1"></i>Fazer agora
-          </a>`;
+          </a>
+          ${selectAssociar}`;
       }
     } else {
       if (feita && registro) {
@@ -340,6 +403,15 @@ function abrirModalDia(data) {
       if (!cnt) return;
       bootstrap.Modal.getInstance(document.getElementById('modalDiaCalendario'))?.hide();
       abrirModalContagem(cnt, { onApagar: apagarContagemDashboard });
+    });
+  });
+
+  document.getElementById('modal-dia-body').querySelectorAll('.btn-associar-contagem').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const select = btn.previousElementSibling;
+      if (!select || !select.value) { alert('Seleciona uma contagem para associar.'); return; }
+      btn.disabled = true;
+      associarContagemAoDia(select.value, data);
     });
   });
 
