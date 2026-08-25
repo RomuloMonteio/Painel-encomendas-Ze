@@ -145,6 +145,14 @@ export function initPage({ pagina, titulo, onReady }) {
       if (snap.exists()) userData = snap.data();
     } catch (_) {}
 
+    // Conta desativada por um admin (ver assets/js/admin-api.js) — nega o acesso
+    // mesmo que a conta ainda exista no Firebase Auth.
+    if (userData.ativo === false) {
+      await signOut(auth);
+      window.location.href = 'index.html?desativado=1';
+      return;
+    }
+
     document.getElementById('sidebar').innerHTML = buildSidebar(pagina, userData.nome, userData.nivel);
     document.getElementById('topbar').innerHTML  = buildTopbar(titulo);
 

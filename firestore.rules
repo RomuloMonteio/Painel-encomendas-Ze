@@ -7,12 +7,17 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.nivel == 'admin';
     }
 
-    // Perfil do utilizador — o próprio lê o seu; admins leem/atualizam qualquer um
+    // Perfil do utilizador — o próprio lê o seu; admins leem/criam/atualizam qualquer um.
+    // A conta de autenticação (login/password) é gerida à parte pelo Firebase Auth;
+    // este documento só guarda nome/email/nível/estado ativo.
     match /users/{userId} {
       allow read:   if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow create: if isAdmin();
       allow update: if isAdmin()
-                    && !(request.auth.uid == userId && request.resource.data.nivel != resource.data.nivel);
-      allow create, delete: if false; // só via Cloud Functions (Admin SDK, ignora rules)
+                    // um admin não se pode autodespromover nem autodesativar por engano
+                    && !(request.auth.uid == userId && request.resource.data.nivel != resource.data.nivel)
+                    && !(request.auth.uid == userId && request.resource.data.ativo == false);
+      allow delete: if false; // "remover" é desativar (ativo:false); apagar de vez só via Firebase Console
     }
 
     // Encomendas — qualquer utilizador autenticado lê e actualiza estado

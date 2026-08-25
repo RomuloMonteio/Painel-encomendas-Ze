@@ -1,5 +1,7 @@
 import { initPage } from '../layout.js';
-import { criarUtilizador, atualizarUtilizador, apagarUtilizador, listarUtilizadores } from '../admin-api.js';
+import {
+  criarUtilizador, atualizarUtilizador, enviarResetPassword, definirAtivo, listarUtilizadores,
+} from '../admin-api.js';
 
 let currentUser = null;
 let todosUtilizadores = [];
@@ -35,7 +37,7 @@ function renderizar() {
   const tbody = document.getElementById('tbody-utilizadores');
 
   if (!todosUtilizadores.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">
       <i class="fas fa-inbox me-2 opacity-50"></i>Sem utilizadores</td></tr>`;
     return;
   }
@@ -44,12 +46,18 @@ function renderizar() {
     const nivelBadge = u.nivel === 'admin'
       ? `<span class="badge-estado badge-confirmada">Administrador</span>`
       : `<span class="badge-estado badge-entregue">Funcionário</span>`;
-    const podeApagar = u.uid !== currentUser.uid;
+    const ativo = u.ativo !== false;
+    const estadoBadge = ativo
+      ? `<span class="badge-estado badge-entregue">Ativo</span>`
+      : `<span class="badge-estado badge-cancelada">Inativo</span>`;
+    const eProprio = u.uid === currentUser.uid;
+
     return `
       <tr>
         <td><strong>${u.nome}</strong></td>
         <td>${u.email ?? '—'}</td>
         <td class="text-center">${nivelBadge}</td>
+        <td class="text-center">${estadoBadge}</td>
         <td>
           <div class="d-flex gap-1">
             <a class="btn-outline-custom py-1 px-2" style="font-size:.78rem;"
@@ -61,10 +69,15 @@ function renderizar() {
                     data-action="editar" data-uid="${u.uid}" title="Editar">
               <i class="fas fa-pen"></i>
             </button>
-            <button class="btn-outline-custom py-1 px-2" style="font-size:.78rem;color:#dc2626;border-color:#fca5a5;"
-                    data-action="apagar" data-uid="${u.uid}" title="Apagar"
-                    ${podeApagar ? '' : 'disabled'}>
-              <i class="fas fa-trash"></i>
+            <button class="btn-outline-custom py-1 px-2" style="font-size:.78rem;"
+                    data-action="reset-password" data-uid="${u.uid}" title="Enviar link de redefinição de password">
+              <i class="fas fa-key"></i>
+            </button>
+            <button class="btn-outline-custom py-1 px-2" style="font-size:.78rem;${ativo ? 'color:#dc2626;border-color:#fca5a5;' : 'color:#16a34a;border-color:#86efac;'}"
+                    data-action="${ativo ? 'desativar' : 'reativar'}" data-uid="${u.uid}"
+                    title="${ativo ? 'Desativar' : 'Reativar'}"
+                    ${eProprio ? 'disabled' : ''}>
+              <i class="fas ${ativo ? 'fa-user-slash' : 'fa-user-check'}"></i>
             </button>
           </div>
         </td>
@@ -74,14 +87,20 @@ function renderizar() {
   tbody.querySelectorAll('[data-action="editar"]').forEach(btn => {
     btn.addEventListener('click', () => abrirModalEditar(btn.dataset.uid));
   });
-  tbody.querySelectorAll('[data-action="apagar"]').forEach(btn => {
-    btn.addEventListener('click', () => confirmarApagar(btn.dataset.uid));
+  tbody.querySelectorAll('[data-action="reset-password"]').forEach(btn => {
+    btn.addEventListener('click', () => confirmarResetPassword(btn.dataset.uid));
+  });
+  tbody.querySelectorAll('[data-action="desativar"]').forEach(btn => {
+    btn.addEventListener('click', () => confirmarMudarAtivo(btn.dataset.uid, false));
+  });
+  tbody.querySelectorAll('[data-action="reativar"]').forEach(btn => {
+    btn.addEventListener('click', () => confirmarMudarAtivo(btn.dataset.uid, true));
   });
 }
 
 async function carregarLista() {
   const tbody = document.getElementById('tbody-utilizadores');
-  tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">
+  tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">
     <i class="fas fa-spinner fa-spin me-2"></i>A carregar…</td></tr>`;
   try {
     todosUtilizadores = await listarUtilizadores();
@@ -89,7 +108,7 @@ async function carregarLista() {
     renderizar();
   } catch (err) {
     console.error(err);
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">
       <i class="fas fa-triangle-exclamation me-2"></i>Erro ao carregar utilizadores</td></tr>`;
     mostrarErro(err.message ?? 'Erro ao carregar utilizadores.');
   }
@@ -103,9 +122,9 @@ function abrirModalCriar() {
   document.getElementById('formUtilizador').reset();
   document.getElementById('input-email').disabled = false;
   document.getElementById('wrapper-email').style.display = 'block';
+  document.getElementById('wrapper-password').style.display = 'block';
   document.getElementById('input-password').required = true;
-  document.getElementById('label-password').textContent = 'Password';
-  document.getElementById('hint-password').textContent = 'Mínimo 6 caracteres.';
+  document.getElementById('input-nivel').value = 'funcionario';
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalUtilizador')).show();
 }
 
@@ -117,32 +136,45 @@ function abrirModalEditar(uid) {
   document.getElementById('modal-utilizador-titulo').textContent = `Editar — ${u.nome}`;
   document.getElementById('input-nome').value  = u.nome;
   document.getElementById('input-email').value = u.email ?? '';
-  document.getElementById('wrapper-email').style.display = 'block';
   document.getElementById('input-email').disabled = true;
-  document.getElementById('input-password').value = '';
+  document.getElementById('wrapper-email').style.display = 'block';
+  document.getElementById('wrapper-password').style.display = 'none';
   document.getElementById('input-password').required = false;
-  document.getElementById('label-password').textContent = 'Nova Password (opcional)';
-  document.getElementById('hint-password').textContent = 'Deixar em branco para não alterar.';
+  document.getElementById('input-password').value = '';
   document.getElementById('input-nivel').value = u.nivel;
   bootstrap.Modal.getOrCreateInstance(document.getElementById('modalUtilizador')).show();
 }
 
-async function confirmarApagar(uid) {
+async function confirmarResetPassword(uid) {
+  const u = todosUtilizadores.find(x => x.uid === uid);
+  if (!u || !u.email) return;
+  if (!confirm(`Enviar email de redefinição de password para ${u.nome} (${u.email})?`)) return;
+  try {
+    await enviarResetPassword(u.email);
+    alert('Email de redefinição enviado.');
+  } catch (err) {
+    console.error(err);
+    mostrarErro(err.message ?? 'Erro ao enviar o email de redefinição.');
+  }
+}
+
+async function confirmarMudarAtivo(uid, ativo) {
   const u = todosUtilizadores.find(x => x.uid === uid);
   if (!u) return;
-  if (!confirm(`Apagar o utilizador "${u.nome}" (${u.email})?\nEsta ação não pode ser desfeita — a conta deixa de conseguir entrar.`)) return;
+  const acao = ativo ? 'reativar' : 'desativar';
+  if (!confirm(`Queres ${acao} "${u.nome}"?${!ativo ? '\nA pessoa deixa de conseguir entrar na aplicação.' : ''}`)) return;
   try {
-    await apagarUtilizador(uid);
+    await definirAtivo(uid, ativo);
     await carregarLista();
   } catch (err) {
     console.error(err);
-    mostrarErro(err.message ?? 'Erro ao apagar utilizador.');
+    mostrarErro(err.message ?? `Erro ao ${acao} utilizador.`);
   }
 }
 
 // ─── onReady ──────────────────────────────────────────────────────────────
 async function onReady(user, userData) {
-  // Proteção só de UX — a segurança real está nas Cloud Functions e nas Firestore rules.
+  // Proteção só de UX — a segurança real está nas Firestore rules (isAdmin()).
   if (userData.nivel !== 'admin') { window.location.href = 'dashboard.html'; return; }
 
   currentUser = user;
@@ -165,7 +197,7 @@ async function onReady(user, userData) {
 
     try {
       if (modoEdicaoUid) {
-        await atualizarUtilizador({ uid: modoEdicaoUid, nome, nivel, novaPassword: password || undefined });
+        await atualizarUtilizador({ uid: modoEdicaoUid, nome, nivel });
       } else {
         await criarUtilizador({ nome, email, password, nivel });
       }

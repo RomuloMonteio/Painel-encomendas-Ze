@@ -65,11 +65,13 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 </script>
 <script type="module">
-import { auth } from './assets/js/firebase.js';
+import { auth, db } from './assets/js/firebase.js';
 import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
+  signOut,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 onAuthStateChanged(auth, user => {
   if (user) location.href = 'dashboard.html';
@@ -80,7 +82,11 @@ const erroMsgEl = document.getElementById('login-erro-msg');
 
 function mostrarErro(msg) {
   erroMsgEl.textContent = msg;
-  erroEl.style.display = 'flex';
+  erroEl.style.setProperty('display', 'flex', 'important');
+}
+
+if (new URLSearchParams(location.search).get('desativado')) {
+  mostrarErro('Esta conta foi desativada. Contacta um administrador.');
 }
 
 document.getElementById('togglePw').addEventListener('click', () => {
@@ -92,7 +98,7 @@ document.getElementById('togglePw').addEventListener('click', () => {
 
 document.getElementById('formLogin').addEventListener('submit', async e => {
   e.preventDefault();
-  erroEl.style.display = 'none';
+  erroEl.style.setProperty('display', 'none', 'important');
   const btn = document.getElementById('btn-login');
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>A entrar…';
@@ -101,7 +107,17 @@ document.getElementById('formLogin').addEventListener('submit', async e => {
   const password = document.getElementById('login-password').value;
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+
+    const snap = await getDoc(doc(db, 'users', cred.user.uid));
+    if (snap.exists() && snap.data().ativo === false) {
+      await signOut(auth);
+      mostrarErro('Esta conta foi desativada. Contacta um administrador.');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-right-to-bracket me-1"></i>Entrar';
+      return;
+    }
+
     location.href = 'dashboard.html';
   } catch (err) {
     const msgs = {

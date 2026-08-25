@@ -10,12 +10,12 @@ Sem servidor, sem PHP, sem build step — servir os ficheiros estáticos diretam
 
 ## Configuração inicial
 
-1. Criar projeto Firebase em [console.firebase.google.com](https://console.firebase.google.com), no plano **Blaze** (necessário para Cloud Functions)
+1. Criar projeto Firebase em [console.firebase.google.com](https://console.firebase.google.com)
 2. Activar **Authentication → Email/Password**
 3. Criar base de dados **Firestore** em modo produção
 4. Preencher `assets/js/firebase.js` com as credenciais do projeto
-5. Publicar `firestore.rules` e as Cloud Functions (`firebase deploy --only firestore:rules,functions`)
-6. **Primeiro administrador** (ovo-e-galinha — só pode ser feito manualmente): criar a conta em **Authentication → Users** no Firebase Console e criar o documento `users/{uid}` com `{ nome: "Nome", nivel: "admin" }`. A partir daí, todos os outros utilizadores (admins ou funcionários) são geridos em `utilizadores.html` por um admin já existente.
+5. Publicar `firestore.rules` no projeto (Firebase CLI: `firebase deploy --only firestore:rules`)
+6. **Primeiro administrador** (ovo-e-galinha — só pode ser feito manualmente): criar a conta em **Authentication → Users** no Firebase Console e criar o documento `users/{uid}` com `{ nome: "Nome", email: "email@usado-no-auth.pt", nivel: "admin", ativo: true }` — o campo `email` tem de bater certo com o da conta Auth e ser preenchido manualmente aqui (só é gravado automaticamente quando a conta é criada pelo painel `utilizadores.html`). A partir daí, todos os outros utilizadores (admins ou funcionários) são geridos em `utilizadores.html` por um admin já existente.
 7. Servir com qualquer servidor estático (ex.: `npx serve .` ou extensão Live Server do VS Code)
 
 > Os ES Modules requerem que os ficheiros sejam servidos via HTTP(S), não via `file://`.
@@ -29,16 +29,13 @@ encomendas.html      formulário de encomenda (?marca=super-bock|sumol)
 historico.html       histórico com filtros client-side e paginação
 utilizadores.html    painel de administração de utilizadores (só nivel:'admin')
 firestore.rules      regras de segurança do Firestore
-firebase.json         config Firestore + Cloud Functions
-
-functions/            Cloud Functions (Admin SDK) — gestão de contas de utilizador
-  index.js             adminCriarUtilizador, adminAtualizarUtilizador, adminApagarUtilizador, adminListarUtilizadores
+firebase.json         config Firestore
 
 assets/
   css/style.css        design completo (variáveis CSS, layout, formulário, tabela)
   js/
-    firebase.js        initializeApp + export auth, db, functions
-    admin-api.js       wrappers httpsCallable para as Cloud Functions de administração
+    firebase.js        initializeApp + export auth, db, firebaseConfig
+    admin-api.js       gestão de utilizadores (criar, editar, reset password, ativar/desativar)
     contagem-modal.js  modal de detalhe de contagem partilhado (histórico + calendário)
     data.js            dados estáticos: MARCAS, CATEGORIAS, PRODUTOS_MAP, AGENDA_SEMANAL
     layout.js          initPage() — auth guard, sidebar/topbar injection, logout
@@ -67,7 +64,12 @@ Transação Firestore em `meta/counter` com chave `total_{ano}` — garante sequ
 Client-side sobre até 200 documentos carregados de uma vez. Adequado para volume de um restaurante. Paginação também client-side (20 por página). Aceita `?userId=&userNome=` na query string (vindo do painel de utilizadores) para filtrar implicitamente as contagens de uma pessoa, mostrando um badge "Filtrado por: X".
 
 **Painel de administração (`utilizadores.html`):**
-O SDK do Firebase no browser não permite que um utilizador crie, apague ou altere a password de outro — só o Admin SDK, que corre num backend, consegue isso. Por isso a gestão de contas passa por `functions/index.js` (Cloud Functions `onCall`), chamadas do cliente via `assets/js/admin-api.js` (`httpsCallable`). Todas as functions verificam no servidor que quem chama tem `nivel:'admin'` no Firestore antes de agir — a verificação client-side em `utilizadores.js` é só UX, não segurança. As Firestore rules também permitem que um admin leia/atualize qualquer `users/{uid}` (função `isAdmin()` em `firestore.rules`), mas a criação e remoção de contas continuam bloqueadas ao cliente — só passam pelas Cloud Functions.
+Sem backend próprio — tudo em `assets/js/admin-api.js`, só com o SDK do browser:
+- **Criar utilizador:** o SDK normal trocaria a sessão ativa para a conta nova assim que ela fosse criada. Para evitar isso, `criarUtilizador()` abre uma segunda instância Firebase isolada (`initializeApp(firebaseConfig, 'secondary-'+Date.now())`), cria a conta lá, e destrói essa instância (`deleteApp`) — a sessão do admin nunca é tocada.
+- **Alterar a password de outra pessoa:** não é possível diretamente sem backend. Em vez disso, `enviarResetPassword()` manda um email de redefinição (`sendPasswordResetEmail`) — a própria pessoa define a nova password.
+- **Remover utilizador:** `definirAtivo(uid, false)` marca `users/{uid}.ativo = false`. O auth guard em `layout.js` e o login em `index.html` verificam esse campo e bloqueiam o acesso (com `signOut`) mesmo que a conta continue a existir no Firebase Auth. Não apaga a conta de vez — isso só é possível manualmente no Firebase Console.
+
+A verificação `userData.nivel !== 'admin'` em `utilizadores.js` é só UX; a proteção real está nas Firestore rules (`isAdmin()` em `firestore.rules`, que também impede um admin de se autodespromover ou autodesativar por engano).
 
 ## Colecção Firestore `encomendas`
 
